@@ -1,3 +1,5 @@
+**English** | [Русский](README.ru.md)
+
 # templates/
 
 Files that plugins copy INTO a project (a plugin cannot place rules into a

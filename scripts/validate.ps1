@@ -6,8 +6,9 @@
   For each folder under plugins/ that holds .claude-plugin/plugin.json:
     - claude plugin validate <folder>
     - claude plugin test <folder>   (only when the folder holds *.test.ts files)
-  Then checks that every plugin folder is listed in marketplace.json and that
-  every marketplace entry points at an existing folder.
+  Then checks that every plugin folder is listed in marketplace.json, that
+  every marketplace entry points at an existing folder, and that every
+  human-facing X.md has its Russian twin X.ru.md (and the other way round).
   Exits with code 1 when anything fails.
 
 .EXAMPLE
@@ -48,7 +49,27 @@ foreach ($entry in $marketplace.plugins) {
   }
 }
 
-# 2. Each plugin folder
+# 2. Bilingual docs: every human-facing X.md has an X.ru.md twin (and back)
+$docFiles = @(Get-ChildItem $root -Recurse -Filter '*.md' -File |
+  Where-Object {
+    $_.FullName -notmatch '[\\/]\.git[\\/]' -and
+    $_.Name -ne 'CLAUDE.md' -and $_.Name -ne 'SKILL.md' -and
+    $_.FullName -notmatch '[\\/](skills|commands|agents|references|examples)[\\/]' -and
+    $_.FullName -notmatch '[\\/]templates[\\/][^\\/]+[\\/]'
+  })
+foreach ($doc in $docFiles) {
+  if ($doc.Name -like '*.ru.md') {
+    $twin = Join-Path $doc.DirectoryName ($doc.Name -replace '\.ru\.md$', '.md')
+  } else {
+    $twin = Join-Path $doc.DirectoryName ($doc.Name -replace '\.md$', '.ru.md')
+  }
+  if (-not (Test-Path $twin)) {
+    Write-Host "doc '$($doc.FullName.Substring($root.Length + 1))' has no language twin '$(Split-Path $twin -Leaf)'" -ForegroundColor Red
+    $failed++
+  }
+}
+
+# 3. Each plugin folder
 $folders = Get-ChildItem $pluginsDir -Directory -ErrorAction SilentlyContinue |
   Where-Object { Test-Path (Join-Path $_.FullName '.claude-plugin\plugin.json') }
 if ($Only) { $folders = $folders | Where-Object { $_.Name -eq $Only } }

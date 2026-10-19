@@ -1,3 +1,5 @@
+**English** | [Русский](README.ru.md)
+
 # AI-helpers
 
 A Claude Code plugin marketplace: one idea per plugin, installable separately.
@@ -70,8 +72,15 @@ plugins/<name>/                   one plugin per folder
 templates/                        files plugins copy into projects (rules, CLAUDE.md starters)
 scripts/validate.ps1              validates and tests every plugin
 docs/                             design notes and screenshots
-CLAUDE.md                         conventions for working in this repository
+CLAUDE.md                         conventions for working in this repository (English only; the model reads it)
 ```
+
+## Documentation in two languages
+
+English is the primary language. Every human-facing document has a Russian twin
+beside it with the `.ru.md` suffix (`README.md` and `README.ru.md`), and both
+are edited in the same commit. Files the model reads (`CLAUDE.md`, `SKILL.md`,
+commands, agents) exist in English only.
 
 ## License
 

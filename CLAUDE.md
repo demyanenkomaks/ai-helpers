@@ -17,8 +17,13 @@ adding or changing anything.
 5. **Versions live in each plugin's `plugin.json`** (semver). Bump the version
    in the same commit as the change. The marketplace file has no versions.
 6. **Names are kebab-case**, folders match the `name` in `plugin.json`.
-7. **Language.** Code, manifests, skill text and README in English (skills are
-   read by the model). Conversation and docs may be in Russian.
+7. **Language.** Code, manifests and everything the model reads (this file,
+   `SKILL.md`, commands, agents) are English only and have no translation.
+   Human-facing docs are bilingual: English is primary, and every `X.md`
+   (README, docs/, plugin READMEs) has a Russian twin `X.ru.md` beside it.
+   Both open with a language switcher line (`**English** | [Русский](X.ru.md)`
+   and the mirror). When you change one, change the other in the same commit;
+   a twin left behind is a bug (`scripts/validate.ps1` checks this).
 
 ## Adding a knowledge plugin (skills, commands, agents)
 

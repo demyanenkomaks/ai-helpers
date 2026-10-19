@@ -1,3 +1,5 @@
+**English** | [Русский](README.ru.md)
+
 # plugins/
 
 One idea = one plugin. Each plugin lives in its own folder here and is listed
