@@ -20,28 +20,27 @@
 
 ## Установка
 
-Репозиторий живёт на GitFlic: <https://gitflic.ru/project/demy-maks/ai-helpers>.
-Добавьте его как маркетплейс один раз (по git-URL; короткая форма `owner/repo`
-работает только для GitHub), затем ставьте любой плагин по имени. В терминальной
+Репозиторий живёт на GitHub: <https://github.com/demyanenkomaks/ai-helpers>.
+Добавьте его как маркетплейс один раз, затем ставьте любой плагин по имени. В терминальной
 сессии Claude Code:
 
 ```
-/plugin marketplace add https://gitflic.ru/project/demy-maks/ai-helpers.git
+/plugin marketplace add demyanenkomaks/ai-helpers
 /plugin install <plugin>@ai-helpers
 ```
 
 Из командной строки:
 
 ```bash
-claude plugin marketplace add https://gitflic.ru/project/demy-maks/ai-helpers.git
+claude plugin marketplace add demyanenkomaks/ai-helpers
 claude plugin install <plugin>@ai-helpers
 ```
 
-При наличии SSH-доступа к GitFlic так же работает URL
-`git@gitflic.ru:demy-maks/ai-helpers.git`.
+При наличии SSH-доступа к GitHub так же работает URL
+`git@github.com:demyanenkomaks/ai-helpers.git`.
 
 В десктоп-приложении Claude, где `/plugin` не работает: нажмите **+** рядом с
-полем ввода, затем **Plugins**, **Add marketplace** с git-URL выше, затем
+полем ввода, затем **Plugins**, **Add marketplace** с `demyanenkomaks/ai-helpers`, затем
 **Add plugin**.
 
 Обновление: `claude plugin update <plugin>@ai-helpers`, затем `/reload-plugins`.

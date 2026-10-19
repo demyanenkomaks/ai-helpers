@@ -66,7 +66,7 @@ The details card shows how many pings the current idle period has used.
 ## Install
 
 ```
-/plugin marketplace add https://gitflic.ru/project/demy-maks/ai-helpers.git
+/plugin marketplace add demyanenkomaks/ai-helpers
 /plugin install context-relay@ai-helpers
 ```
 

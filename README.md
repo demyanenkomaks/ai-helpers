@@ -19,28 +19,27 @@ A Claude Code plugin marketplace: one idea per plugin, installable separately.
 
 ## Install
 
-The repository lives on GitFlic: <https://gitflic.ru/project/demy-maks/ai-helpers>.
-Add it as a marketplace once (by its git URL; the short `owner/repo` form is
-for GitHub only), then install any plugin by name. At the prompt of a terminal
+The repository lives on GitHub: <https://github.com/demyanenkomaks/ai-helpers>.
+Add it as a marketplace once, then install any plugin by name. At the prompt of a terminal
 Claude Code session:
 
 ```
-/plugin marketplace add https://gitflic.ru/project/demy-maks/ai-helpers.git
+/plugin marketplace add demyanenkomaks/ai-helpers
 /plugin install <plugin>@ai-helpers
 ```
 
 From a shell:
 
 ```bash
-claude plugin marketplace add https://gitflic.ru/project/demy-maks/ai-helpers.git
+claude plugin marketplace add demyanenkomaks/ai-helpers
 claude plugin install <plugin>@ai-helpers
 ```
 
-With SSH access to GitFlic the URL `git@gitflic.ru:demy-maks/ai-helpers.git`
+With SSH access to GitHub the URL `git@github.com:demyanenkomaks/ai-helpers.git`
 works the same way.
 
 In the Claude desktop app, where `/plugin` does not run: click **+** next to the
-prompt box, then **Plugins**, **Add marketplace** with the git URL above, then
+prompt box, then **Plugins**, **Add marketplace** with `demyanenkomaks/ai-helpers`, then
 **Add plugin**.
 
 Updates: `claude plugin update <plugin>@ai-helpers`, then `/reload-plugins`.

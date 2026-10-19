@@ -3,8 +3,8 @@
   "name": "ai-helpers",
   "description": "Skills, rules and interface mods for Claude Code: Laravel/Filament conventions, workflow skills, and mods for context tracking, agent-action visibility and deletion guarding.",
   "owner": {
-    "name": "demy-maks",
-    "url": "https://gitflic.ru/user/demy-maks"
+    "name": "demyanenkomaks",
+    "url": "https://github.com/demyanenkomaks"
   },
   "plugins": [
     {

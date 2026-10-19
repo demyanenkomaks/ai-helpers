@@ -66,7 +66,7 @@ Windows это культура, которую сообщает PowerShell, и�
 ## Установка
 
 ```
-/plugin marketplace add https://gitflic.ru/project/demy-maks/ai-helpers.git
+/plugin marketplace add demyanenkomaks/ai-helpers
 /plugin install context-relay@ai-helpers
 ```
 
