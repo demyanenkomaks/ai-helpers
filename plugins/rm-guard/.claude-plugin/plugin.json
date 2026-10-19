@@ -1,6 +1,7 @@
 {
   "name": "rm-guard",
-  "version": "0.3.0",
+  "version": "0.5.0",
+  "types": "./types/index.d.ts",
   "description": "Stops the agent from deleting files without your say-so: reads rm, del, Remove-Item, find -delete through wrappers, shows you what would be deleted and asks before it runs.",
   "author": {
     "name": "demyanenkomaks"

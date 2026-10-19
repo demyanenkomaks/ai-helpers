@@ -16,13 +16,22 @@ Design and the reasons behind it: [docs/rm-guard-design.md](../../docs/rm-guard-
 | **asked** | any other call of a guarded command, and any path it cannot work out (`$VAR/x`, `$(...)`, `%TEMP%`, paths piped in) |
 | **passed** | the command is not guarded, or every target is inside an allowed path |
 
-Any call stops, not only `rm -rf`: `rm file.txt` asks too. The question is a
-dialog that names what would be deleted and shows the command; answer **Allow
-once** to let it run, **Deny** to stop it, or type your own words under *Other*
-and the agent reads them as the reason. The dialog is the mod's own, so it
-opens in every permission mode, auto included (a plain *ask* verdict would go to
-the mode's decider, and auto mode answers that itself). Where nobody can be
-asked (`claude -p`) the command is refused.
+Any call stops, not only `rm -rf`: `rm file.txt` asks too. The question is a red-framed
+block in the chat, just above the prompt (under any band other mods draw there),
+with a list of every path that would be deleted (relative ones made absolute; a
+path built from a variable is marked as unknown, `find -delete` names the folder
+it searches), the command, and two buttons only: **Delete** (key `1`) and
+**Cancel** (key `2`, focused, so a stray Enter refuses). A toast tells you it is
+waiting. Parallel deletions queue, one question after the other. The block is the
+mod's own, so it appears in every permission mode, auto included (a plain *ask*
+verdict would go to the mode's decider, and auto mode answers that itself).
+
+Where there is no screen to draw on, the engine's own question dialog is used
+instead, with options Allow once and Deny and a red banner above it. Where nobody
+can be asked (`claude -p`) the command is refused.
+
+The question speaks Russian on the desktop app when the system language is Russian
+(**Удалить** / **Отменить**), and English everywhere else, the terminal included.
 
 The reader is a tokenizer, not a text search. It looks through `sudo`, `env`,
 `command`, `nohup`, `time`, `timeout`, `bash -c`, `eval`, `cmd /c`,
@@ -50,6 +59,7 @@ There is deliberately no off switch.
   unless you deny it in your permission rules; add a deny rule for your
   settings files if the agent must not loosen this guard.
 - If the guard itself fails, the command is refused, never passed.
+- A question left unanswered for ten minutes is dropped as a refusal.
 
 ## Install
 

@@ -17,7 +17,7 @@
 | Плагин | Тип | Статус |
 | --- | --- | --- |
 | [context-relay](plugins/context-relay/README.ru.md) | мод | 0.5.0 |
-| [rm-guard](plugins/rm-guard/README.ru.md) | мод | 0.3.0 |
+| [rm-guard](plugins/rm-guard/README.ru.md) | мод | 0.5.0 |
 
 ## Установка
 

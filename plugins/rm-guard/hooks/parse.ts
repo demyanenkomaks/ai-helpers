@@ -7,7 +7,16 @@ export type Shell = 'bash' | 'powershell'
 
 export type Decision = 'allow' | 'ask' | 'deny'
 
-export type Verdict = { decision: Decision; reason?: string }
+/** What a stopped command would delete, for the question put to the person. */
+export type Target = {
+  text: string
+  /** The path is built from a variable or a substitution. */
+  dynamic: boolean
+  /** `search`: everything under it that find matches; `stdin`: paths another command produces. */
+  kind?: 'search' | 'stdin'
+}
+
+export type Verdict = { decision: Decision; reason?: string; targets?: Target[] }
 
 export type Policy = {
   /** Lower-cased names of the commands that stop. */
@@ -355,7 +364,8 @@ export function judgePath(word: Word, policy: Policy, isSearchRoot = false): Ver
 const RANK: Record<Decision, number> = { allow: 0, ask: 1, deny: 2 }
 
 function worst(a: Verdict, b: Verdict): Verdict {
-  return RANK[b.decision] > RANK[a.decision] ? b : a
+  const targets = [...(a.targets ?? []), ...(b.targets ?? [])]
+  return { ...(RANK[b.decision] > RANK[a.decision] ? b : a), targets }
 }
 
 const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash', 'ksh', 'ash', 'fish', 'busybox'])
@@ -385,7 +395,7 @@ function baseName(word: string): string {
 
 /** Judges `command` as the Bash or PowerShell tool would run it. */
 export function judge(command: string, policy: Policy): Verdict {
-  let result: Verdict = { decision: 'allow' }
+  let result: Verdict = { decision: 'allow', targets: [] }
   for (const words of tokenize(command, policy)) {
     result = worst(result, judgeWords(words, policy, 0, false))
   }
@@ -499,7 +509,12 @@ function judgeFind(args: Word[], policy: Policy, depth: number): Verdict {
     const targets = roots.length > 0 ? roots : [{ text: '.', dynamic: false }]
     for (const root of targets) {
       const v = judgePath(root, policy, true)
-      result = worst(result, v.decision === 'allow' ? v : { decision: 'ask', reason: `find -delete under ${v.reason ?? root.text}` })
+      if (v.decision === 'allow') continue
+      result = worst(result, {
+        decision: v.decision,
+        reason: `find -delete under ${v.reason ?? root.text}`,
+        targets: [{ text: root.text, dynamic: root.dynamic, kind: 'search' }],
+      })
     }
   }
   return result
@@ -533,7 +548,11 @@ function judgeDeletion(name: string, args: Word[], policy: Policy, fromStdin: bo
       continue
     } else add(w)
   }
-  if (fromStdin) targets.push({ text: 'paths from another command', dynamic: true })
+  const shown: Target[] = targets.map(t => ({ text: t.text, dynamic: t.dynamic }))
+  if (fromStdin) {
+    targets.push({ text: 'paths from another command', dynamic: true })
+    shown.push({ text: '', dynamic: true, kind: 'stdin' })
+  }
 
   if (targets.length === 0) {
     return { decision: 'ask', reason: `${name} names no path that can be checked` }
@@ -541,5 +560,13 @@ function judgeDeletion(name: string, args: Word[], policy: Policy, fromStdin: bo
   let result: Verdict = { decision: 'allow' }
   for (const target of targets) result = worst(result, judgePath(target, policy))
   if (result.decision === 'allow') return result
-  return { decision: result.decision, reason: `${name}: ${result.reason ?? 'not allowed'}` }
+  return { decision: result.decision, reason: `${name}: ${result.reason ?? 'not allowed'}`, targets: shown }
+}
+
+/** A target as the person should read it: relative paths made absolute from the project folder. */
+export function display(text: string, cwd: string): string {
+  if (/^([A-Za-z]:[\\/]|\/|\\\\|~)/.test(text)) return text
+  const separator = cwd.includes('\\') ? '\\' : '/'
+  const rest = text.replace(/^\.[\\/]/, '').replace(/[\\/]/g, separator)
+  return `${cwd.replace(/[\\/]+$/, '')}${separator}${rest}`
 }

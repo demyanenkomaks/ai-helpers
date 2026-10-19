@@ -4,7 +4,9 @@
 
 Status: agreed 2026-10-19, implemented as `plugins/rm-guard` 0.1.0 the
 same day; 0.2.0 turned every ask into a deny, which lost the
-confirmation; 0.3.0 restored it as the mod's own dialog (see Outcomes). This document is the contract
+confirmation; 0.3.0 restored it as the mod's own dialog (see Outcomes);
+0.4.0 lists the paths, banners the dialog in red and translates it;
+0.5.0 replaced the option list with two buttons above the prompt. This document is the contract
 the mod is built against; change it before changing behaviour.
 
 ## One line
@@ -81,6 +83,46 @@ denied. A catastrophic target is a plain deny with no dialog. The analogs
 studied block rather than ask, except `guardhook`'s ask on force-push; this
 mod asks because confirmation is the requirement.
 
+The dialog lists every path that would be deleted (relative ones made
+absolute from the project folder, duplicates folded, at most 15 lines and "and
+N more"); a path built from a variable is marked as unknown until it runs, paths
+another command pipes in and the folder a `find -delete` searches are named as
+such. A `ui.render` hook on the `AskUserQuestion` component wraps the engine's own
+drawing of this one dialog (recognised by its `rm-guard` chip) under a red
+banner; every other question is left as it is. That dialog is now only the
+fallback: it is the engine's own, with a radio list, *Other* and *Skip*, which
+is more than a yes or no needs. The dialog follows the language
+of the app the way `context-relay` does: the desktop draws in the system language
+(Russian or English), every other surface in English. What the model reads (the
+refusal texts) is always English.
+
+### The two buttons above the prompt
+
+The primary question is a block the mod draws itself in the chat, above the
+prompt (a `ui.render` hook on `{ component: 'AbovePrompt' }`, under whatever
+band other mods draw there, the way `context-relay` composes): a red frame with a
+heading, the list, the command, and two `Button`s, **Delete** (key `1`) and **Cancel** (key `2`, with
+focus so a stray Enter refuses); Russian labels **Удалить** and **Отменить**. What it
+draws is held in `$.state` (`rm-guard.asking`); the buttons' callbacks wait in a
+module map by question id, since a closure cannot be state. A toast says a
+question waits. Questions asked at the same time queue behind each other. A
+session with no surface to draw on (`$.session.surfaces()` empty) uses the
+engine dialog above; if that rejects (`claude -p`), the call is denied. A
+right-hand pane (0.5.0 first cut) was dropped: the person asked for the question
+in the chat.
+
+### Waiting for the answer
+
+A hook runs under a budget of 10 s of its own time per dispatch (`HookBudget`);
+the clock stops only while a `next` or `$` call is in flight. Awaiting a promise
+of the mod's own counts, so a person who pressed a button after ten seconds met
+`the guard failed` (found in use, 0.5.0 first run). The wait is therefore made of
+`$` calls: a one-second sleep (`ping -n 2 127.0.0.1` on Windows, `sleep 1`
+elsewhere, through `$.process.run`) raced against the answer, repeated; the race
+makes the reaction immediate. A sleep that does not hold (shorter than half a
+second, or refused) falls back to awaiting the answer itself. Ten minutes
+without an answer is a refusal.
+
 ### Exceptions
 
 `allowPaths` in `userConfig`: a list of paths (empty by default). Targets that
@@ -112,10 +154,12 @@ runs can still delete files, which the guard sees only as an unknown command.
 
 ```
 plugins/rm-guard/
-├── .claude-plugin/plugin.json     name, version 0.1.0, types, userConfig
-├── hooks/hooks.json               { "modules": ["./register.ts"] }
-├── hooks/register.ts              the hook on Bash and PowerShell
+├── .claude-plugin/plugin.json     name, version, userConfig
+├── hooks/hooks.json               { "modules": ["./register.tsx"] }
+├── hooks/register.tsx             the hook on Bash and PowerShell, the red frame
 ├── hooks/parse.ts                 tokenizer, wrapper unwrapping, path resolve
+├── hooks/i18n.ts                  the dialog's words in English and Russian
+├── types/index.d.ts               PluginState contract (rm-guard.asking)
 ├── tests/guard.test.ts            run by `claude plugin test`
 └── README.md, README.ru.md
 ```
@@ -135,5 +179,5 @@ and a thrown error turning into deny.
   guarded command is read as that command, a false alarm on the safe side.
 - `find -delete` roots are never refused as catastrophic (they are search
   roots), only flagged as needing approval, except a disk root or a top-level folder.
-- The file layout is `hooks/register.ts`, `hooks/parse.ts` and
-  `tests/guard.test.ts`; no `$.state`, so no `types/` folder.
+- The file layout is `hooks/register.tsx`, `hooks/parse.ts`, `hooks/i18n.ts`,
+  `types/index.d.ts` and `tests/guard.test.ts`; no `$.state`, so no `types/` folder.
