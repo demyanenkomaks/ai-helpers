@@ -164,7 +164,7 @@ test('paths fold to one shape across Windows, git-bash and WSL', async () => {
   expect(normalize('build/*', CWD)).toEqual({ path: 'w:/projects/demo/build', hasGlob: true })
 })
 
-test('the hook asks, refuses and passes through the engine', async ($, on) => {
+test('the hook refuses every stop, with the right hint, and passes the rest', async ($, on) => {
   mock.env(on, { HOME })
   on('session.cwd', () => ({ value: CWD }))
   on('tool.check', () => ({ decision: 'allow' }))
@@ -173,11 +173,14 @@ test('the hook asks, refuses and passes through the engine', async ($, on) => {
   const shell = (command: string) => $.tool.check({ tool: 'PowerShell', input: { command } })
 
   expect((await bash('ls')).decision).toBe('allow')
-  const asked = await bash('rm -rf node_modules')
-  expect(asked.decision).toBe('ask')
-  expect(asked.reason).toContain('rm-guard')
-  expect((await bash('rm -rf /')).decision).toBe('deny')
-  expect((await shell('Remove-Item -Recurse dist')).decision).toBe('ask')
+  const gray = await bash('rm -rf node_modules')
+  expect(gray.decision).toBe('deny')
+  expect(gray.reason).toContain('rm-guard')
+  expect(gray.reason).toContain('Allowed paths')
+  const worst = await bash('rm -rf /')
+  expect(worst.decision).toBe('deny')
+  expect(worst.reason).toContain('trash')
+  expect((await shell('Remove-Item -Recurse dist')).decision).toBe('deny')
   expect((await $.tool.check({ tool: 'Read', input: { file_path: 'x' } })).decision).toBe('allow')
 })
 
@@ -191,7 +194,7 @@ test(
 
     const bash = (command: string) => $.tool.check({ tool: 'Bash', input: { command } })
     expect((await bash('rm -rf node_modules')).decision).toBe('allow')
-    expect((await bash('rm -rf src')).decision).toBe('ask')
+    expect((await bash('rm -rf src')).decision).toBe('deny')
     expect((await bash('rmdir src')).decision).toBe('allow')
   },
 )

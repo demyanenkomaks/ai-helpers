@@ -3,7 +3,7 @@
 # rm-guard: design
 
 Status: agreed 2026-10-19, implemented as `plugins/rm-guard` 0.1.0 the
-same day. This document is the contract
+same day; 0.2.0 turned every ask into a deny (see Outcomes). This document is the contract
 the mod is built against; change it before changing behaviour.
 
 ## One line
@@ -62,11 +62,19 @@ Hooks run on both the Bash and the PowerShell tool.
 | Outcome | When |
 | --- | --- |
 | deny, with a hint | catastrophic targets: a disk root, a top-level system folder (depth 1), the home folder or a folder above it, the project root or a folder above it (`.`, `..`, `./*`), a `.git` folder; `allowPaths` never overrides these |
-| ask | any other call of a guarded command, a call with no checkable target, and any target the guard cannot resolve (`$VAR/*`, `$(...)`, paths piped in) |
+| deny, "needs the user's approval" | any other call of a guarded command, a call with no checkable target, and any target the guard cannot resolve (`$VAR/*`, `$(...)`, paths piped in) |
 | allow | the command is not in the list, or every target is inside `allowPaths` |
 
 The denial text names the rule that fired and a safer move (for example "move
 it to the trash or a scratch folder, or ask the user to run it").
+
+Every stop is delivered as a `deny`, never as an `ask`: an ask goes to the
+permission mode's decider, and auto mode answers it on its own (found in use:
+a plain `rm` of a temp file in a project passed unasked). The reason text
+tells the model what to do next: for a catastrophic target, do not delete it;
+for the rest, tell the user what and why and let them run the command or add
+the path to `allowPaths`. The analogs studied also block rather than ask,
+except `guardhook`'s ask on force-push.
 
 ### Exceptions
 
@@ -80,7 +88,7 @@ exception.
 Per the repository rule, the hook carries
 `.catch(($, e, next) => next.called ? next(e) : { deny: '...' })`: if the guard
 itself breaks, the call is denied, never passed. An unreadable construct (an encoded PowerShell command, nesting
-deeper than 6) falls to ask.
+deeper than 6) is denied as needing approval.
 
 ### Out of scope
 
@@ -113,11 +121,11 @@ and a thrown error turning into deny.
 
 ## Open items
 
-- Resolved while implementing: the hook is on `tool.check` (verdicts `ask` and
-  `deny` with a reason) for the `Bash` and `PowerShell` tools; the `.catch`
+- Resolved while implementing: the hook is on `tool.check` (verdicts: `deny` with a
+  reason; the parser still tells the two cases apart for the wording) for the `Bash` and `PowerShell` tools; the `.catch`
   answers `{ deny }`.
-- A `bypassPermissions` mode may auto-approve an *ask*; a *deny* holds.
+- A *deny* holds in every permission mode; an *ask* does not (auto mode).
 - `find -delete` roots are never refused as catastrophic (they are search
-  roots), only asked about, except a disk root or a top-level folder.
+  roots), only flagged as needing approval, except a disk root or a top-level folder.
 - The file layout is `hooks/register.ts`, `hooks/parse.ts` and
   `tests/guard.test.ts`; no `$.state`, so no `types/` folder.

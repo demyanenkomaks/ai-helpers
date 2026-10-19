@@ -11,6 +11,9 @@ const TOOLS: ReadonlyArray<readonly [tool: string, shell: Shell]> = [
 const HINT =
   'Do not delete it yourself: move it to the trash or a scratch folder, or tell the user the exact command and let them run it.'
 
+const ASK_HINT =
+  'Deleting needs the user\'s approval: tell the user what you want to delete and why, and let them run the command themselves or add the path to the rm-guard "Allowed paths" setting.'
+
 export const register: Register = (on, options) => {
   const commands = commandsFrom(options['commands'])
   const allow = allowFrom(options['allowPaths'])
@@ -26,9 +29,11 @@ export const register: Register = (on, options) => {
 
       const verdict = judge(input.command, policy)
       if (verdict.decision === 'allow') return next(e)
+      // An `ask` would go to the mode's decider, which auto mode answers
+      // itself, so every stop is a deny that tells the model what to do next.
       return {
-        decision: verdict.decision,
-        reason: `${$.plugin.name}: ${verdict.reason ?? 'deletion'}. ${HINT}`,
+        decision: 'deny',
+        reason: `${$.plugin.name}: ${verdict.reason ?? 'deletion'}. ${verdict.decision === 'deny' ? HINT : ASK_HINT}`,
       }
     }).catch(($, e, next) =>
       next.called ? next(e) : { deny: `${$.plugin.name}: the guard failed, so the command is refused. ${HINT}` },
