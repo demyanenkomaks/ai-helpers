@@ -98,7 +98,7 @@ test('the band shows the tokens, the storm colour on the icon alone and no limit
   }
 })
 
-test('the terminal band expands its details on ▾ and shows the cost, subagents and background commands', async ($, on) => {
+test('the terminal band expands its details on ▾ and shows the cost and subagents', async ($, on) => {
   mock.clock(on, { now: 1_000_000 })
   mock.store(on)
   mock.env(on, {})
@@ -110,64 +110,7 @@ test('the terminal band expands its details on ▾ and shows the cost, subagents
   expect(await ui.find({ text: /No subagents yet/ })).toBe(undefined)
   await ui.press({ key: 'relay-expand' })
   expect(await ui.find({ text: /No subagents yet/ })).toBeDefined()
-  expect(await ui.find({ text: /No commands yet/ })).toBeDefined()
   expect(await ui.find({ text: /\$1\.50/ })).toBeDefined()
-  await ui.unmount()
-})
-
-test('a Bash call that goes to the background is counted until its notification arrives', async ($, on) => {
-  mock.clock(on, { now: 1_000_000 })
-  mock.store(on)
-  mock.env(on, {})
-  bottom(on)
-  on('tool.call', () => ({
-    result: { stdout: '', stderr: '', interrupted: false, backgroundTaskId: 'bg1' },
-  }))
-  await start($)
-  await $.tool.call({ tool: 'Bash', command: 'npm run build', run_in_background: true })
-
-  const busy = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...BAND })
-  const count = await busy.find({ type: 'Text', text: /⚙ 1\/1/ })
-  expect(count).toBeDefined()
-  expect(count?.props['color']).toBe('#d64545')
-  await busy.unmount()
-
-  await $.turn.start({
-    text: [
-      '<task-notification>',
-      '<task-id>bg1</task-id>',
-      '<status>completed</status>',
-      '<summary>Background command "npm run build" completed (exit code 0)</summary>',
-      '</task-notification>',
-    ].join('\n'),
-    turnId: 't2',
-  })
-  const done = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...BAND })
-  expect(await done.find({ type: 'Text', text: /⚙ 0\/1/ })).toBeDefined()
-  await done.press({ key: 'relay-expand' })
-  expect(await done.find({ text: /○ npm run build · completed/ })).toBeDefined()
-  await done.unmount()
-})
-
-test('a foreground Bash call is a task from its call to its answer, named by its description', async ($, on) => {
-  mock.clock(on, { now: 1_000_000 })
-  mock.store(on)
-  mock.env(on, { LANG: 'ru_RU.UTF-8' })
-  bottom(on)
-  let running: string | undefined
-  on('tool.call', async () => {
-    const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...BAND })
-    running = String((await ui.find({ type: 'Text', text: /⚙/ }))?.props['color'])
-    await ui.unmount()
-    return { result: { stdout: 'ok', stderr: '', interrupted: false } }
-  })
-  await start($, 'desktop')
-  await $.tool.call({ tool: 'Bash', command: 'npm run build', description: 'Build the project' })
-  expect(running).toBe('#d64545')
-
-  const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'desktop', ...BAND })
-  expect(await ui.find({ type: 'Text', text: /0\/1/ })).toBeDefined()
-  expect(await ui.find({ text: /○ Build the project · завершена/ })).toBeDefined()
   await ui.unmount()
 })
 

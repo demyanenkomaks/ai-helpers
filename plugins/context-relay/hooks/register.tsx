@@ -30,7 +30,6 @@ import {
 import { languageForSurface, languageOf, stringsFor } from './i18n'
 import { appendLog, errorText, logFileFor } from './log'
 import { HOUR_MS, READINGS_KEPT } from './state'
-import { taskName, taskNotes } from './tasks'
 import {
   PING_PROMPT,
   WARM_PERIOD_MS,
@@ -44,7 +43,6 @@ import type {
   ContextRelayCache,
   ContextRelayHandoff,
   ContextRelayLanguage,
-  ContextRelayTask,
   ContextRelayPendingHandoff,
   ContextRelayReading,
 } from '../types'
@@ -81,11 +79,6 @@ export const cache = atom({ plugin: 'context-relay', key: 'cache' } as const, {
 export const agents = atom(
   { plugin: 'context-relay', key: 'agents' } as const,
   [] as ContextRelayAgent[],
-)
-
-export const tasks = atom(
-  { plugin: 'context-relay', key: 'tasks' } as const,
-  [] as ContextRelayTask[],
 )
 
 export const cost = atom({ plugin: 'context-relay', key: 'cost' } as const, {
@@ -326,22 +319,6 @@ async function reconcileAgents($: EngineInterface): Promise<void> {
         : a,
     ),
   )
-}
-
-/** Marks the background commands whose notifications a delivery carries. */
-async function noteTasks($: EngineInterface, text: string): Promise<void> {
-  const notes = taskNotes(text)
-  if (notes.length === 0) return
-  const now = await $.clock.now()
-  await update($, tasks, list =>
-    list.map(k => {
-      const note = notes.find(n => n.id === k.id)
-      return note !== undefined && k.endedAt === undefined
-        ? { ...k, endedAt: now, status: note.status }
-        : k
-    }),
-  )
-  await logLine($, `tasks: ${notes.map(n => `${n.id} ${n.status}`).join(', ')}`)
 }
 
 /* ----------------------------------------------------------------- */
@@ -728,7 +705,6 @@ async function snapshot(
   const readingList = await read($, readings)
   const cacheState = await read($, cache)
   const agentList = await read($, agents)
-  const taskList = await read($, tasks)
   const costState = await read($, cost)
   const handoffState = await read($, handoff)
   const language = await read($, lang)
@@ -756,8 +732,6 @@ async function snapshot(
     warmIsOn: hours > 0,
     agents: agentList,
     running: agentList.filter(a => a.endedAt === undefined).length,
-    tasks: taskList,
-    runningTasks: taskList.filter(k => k.endedAt === undefined).length,
     cost: costState,
     handoff: handoffState,
     isExpanded: isExpandedNow,
@@ -807,7 +781,6 @@ export const register: Register = (on, options) => {
     if (e.agentId === undefined) {
       void ensureSession($, 'turn.start')
       await pauseWarm($)
-      await noteTasks($, e.text)
     } else {
       const id = e.agentId
       const now = await $.clock.now()
@@ -836,46 +809,6 @@ export const register: Register = (on, options) => {
       )
     }
     return result
-  })
-
-  on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
-    // Every Bash command of the main conversation is a task, as the app's
-    // background-tasks panel lists them: running from the call to its answer
-    // or, when the answer carries a backgroundTaskId (run_in_background,
-    // ctrl+b, a timeout), until its notification arrives (noteTasks).
-    if (e.agentId !== undefined) return next(e)
-    const startedAt = await $.clock.now()
-    const callId = e.tool_use_id ?? `bash-${startedAt}`
-    const name = taskName(e.description, e.command)
-    await update($, tasks, list =>
-      [...list.filter(k => k.id !== callId), { id: callId, name, startedAt }].slice(-50),
-    )
-    const result = await next(e)
-    const now = await $.clock.now()
-    const answer = result.result as { backgroundTaskId?: unknown; interrupted?: unknown } | undefined
-    const bgId = answer?.backgroundTaskId
-    if (typeof bgId === 'string' && bgId !== '') {
-      await update($, tasks, list => list.map(k => (k.id === callId ? { ...k, id: bgId } : k)))
-      await logLine($, `tasks: ${bgId} in the background: ${name}`)
-    } else {
-      const status =
-        result.deny !== undefined
-          ? 'denied'
-          : result.isError === true
-            ? 'failed'
-            : answer?.interrupted === true
-              ? 'interrupted'
-              : 'completed'
-      await update($, tasks, list =>
-        list.map(k => (k.id === callId ? { ...k, endedAt: now, status } : k)),
-      )
-    }
-    return result
-  }).catch(($, e, next) => next(e))
-
-  on('session.receive', async ($, e, next) => {
-    if (e.agentId === undefined) await noteTasks($, e.text)
-    return next(e)
   })
 
   on('turn.complete', async ($, e, next) => {
@@ -1060,7 +993,6 @@ export const register: Register = (on, options) => {
       knownSessionId = null
       await update($, readings, () => [])
       await update($, agents, () => [])
-      await update($, tasks, () => [])
       await update($, cost, c => ({ ...c, lastUsd: 0 }))
       await update($, stormToasted, () => false)
       await update($, cache, c => ({

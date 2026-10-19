@@ -60,13 +60,6 @@ export function peopleIcon(color: string): string {
   )
 }
 
-export function terminalIcon(color: string): string {
-  return wrap(
-    `<rect x="1.5" y="2.5" width="13" height="11" rx="1.8" fill="none" stroke="${color}" stroke-width="1.4"/>` +
-      `<path d="M4.5 6l2.5 2-2.5 2M8 10.5h3.5" fill="none" stroke="${color}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>`,
-  )
-}
-
 export function relayIcon(color: string): string {
   return wrap(
     `<g fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">` +

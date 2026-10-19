@@ -256,3 +256,9 @@ line entry, sounds, per-subagent token accounting.
   ones had been delivered: a stale record with its file had outlived the newer
   ones. Saving a handoff now deletes the project's previous record and file
   first.
+
+### 0.5.0, the commands pill removed
+
+- The ⚙ pill and everything behind it are gone: the `tool.call` Bash
+  tracking, the `<task-notification>` parsing (`tasks.ts`), the `tasks` state
+  and its strings. The band reads weather, cost, cache, subagents.

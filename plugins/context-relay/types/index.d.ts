@@ -47,22 +47,6 @@ export type ContextRelayAgent = {
   endedAt?: number;
 };
 
-/** One background command of this session: a Bash call that went to the background. */
-export type ContextRelayTask = {
-  /**
-   * The call's tool_use_id; once the command goes to the background, the
-   * engine's task id, as its notification carries it.
-   */
-  id: string;
-  /** The call's description, or the command line cut short. */
-  name: string;
-  startedAt: number;
-  /** Set when the call answered, or when the background task's notification arrived. */
-  endedAt?: number;
-  /** `completed`, `failed`, `interrupted`, `denied`, or the notification's own status. */
-  status?: string;
-};
-
 /** Where the handoff flow stands. */
 export type ContextRelayHandoffPhase =
   | 'idle'
@@ -102,7 +86,6 @@ declare module 'claude-code' {
       readings: ContextRelayReading[];
       cache: ContextRelayCache;
       agents: ContextRelayAgent[];
-      tasks: ContextRelayTask[];
       /** Session cost in USD, and the last turn's share. */
       cost: { usd: number; lastUsd: number };
       handoff: ContextRelayHandoff;

@@ -20,10 +20,6 @@ export type Strings = {
   agents: string
   agentsNone: string
   agentsCounts: (running: number, finished: number, total: number) => string
-  tasks: string
-  tasksNone: string
-  tasksCounts: (running: number, finished: number, total: number) => string
-  taskStatus: (status: string) => string
   handoff: string
   collecting: string
   clearing: string
@@ -66,11 +62,6 @@ const en: Strings = {
   agentsNone: 'No subagents yet',
   agentsCounts: (running, finished, total) =>
     `${running} running · ${finished} finished · ${total} total`,
-  tasks: 'Commands',
-  tasksNone: 'No commands yet',
-  tasksCounts: (running, finished, total) =>
-    `${running} running · ${finished} finished · ${total} total`,
-  taskStatus: status => status,
   handoff: 'Hand the context over to a fresh chat',
   collecting: 'Collecting the handoff…',
   clearing: 'Handoff saved, clearing the chat…',
@@ -94,14 +85,6 @@ const en: Strings = {
   collapse: 'Hide details',
 }
 
-const RU_STATUS: Record<string, string> = {
-  completed: 'завершена',
-  failed: 'ошибка',
-  interrupted: 'прервана',
-  denied: 'отклонена',
-  killed: 'остановлена',
-}
-
 const ru: Strings = {
   band: { clear: 'Ясно', overcast: 'Пасмурно', rain: 'Дождь', storm: 'Гроза' },
   window: 'окно',
@@ -123,11 +106,6 @@ const ru: Strings = {
   agentsNone: 'Субагентов ещё не было',
   agentsCounts: (running, finished, total) =>
     `${running} работает · ${finished} завершено · ${total} всего`,
-  tasks: 'Команды',
-  tasksNone: 'Команд ещё не было',
-  tasksCounts: (running, finished, total) =>
-    `${running} работает · ${finished} завершено · ${total} всего`,
-  taskStatus: status => RU_STATUS[status] ?? status,
   handoff: 'Передать контекст в новый чат',
   collecting: 'Собираю сводку…',
   clearing: 'Сводка сохранена, очищаю чат…',

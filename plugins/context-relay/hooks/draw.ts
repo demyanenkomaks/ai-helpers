@@ -18,14 +18,12 @@ import {
   coinIcon,
   peopleIcon,
   sparklineSvg,
-  terminalIcon,
   weatherIcon,
 } from './icons'
 import type {
   ContextRelayAgent,
   ContextRelayBand,
   ContextRelayHandoff,
-  ContextRelayTask,
 } from '../types'
 
 /**
@@ -33,7 +31,7 @@ import type {
  * the handlers (it owns `$`), these functions turn them into trees by calling
  * the surface's element constructors (JSX is only available in the hooks
  * module). The desktop band is a row of pills after Token Weather Usage by
- * augiefra, in the order weather (with ⇄), cost, cache, subagents, commands;
+ * augiefra, in the order weather (with ⇄), cost, cache, subagents;
  * the terminal band is one line of text in the same order.
  */
 
@@ -52,8 +50,6 @@ export type Snapshot = {
   warmIsOn: boolean
   agents: ContextRelayAgent[]
   running: number
-  tasks: ContextRelayTask[]
-  runningTasks: number
   cost: { usd: number; lastUsd: number }
   handoff: ContextRelayHandoff
   isExpanded: boolean
@@ -95,10 +91,10 @@ function tokensText(s: Snapshot): string {
 
 type Row = { label: string; value: string; color?: string }
 
-/** One entry of a list pill: a subagent or a command. */
+/** One entry of a list pill: a subagent. */
 type ListItem = { text: string; startedAt: number; endedAt?: number }
 
-/** What the subagents pill and the commands pill share. */
+/** What the subagents pill draws from. */
 type ListView = {
   key: string
   icon: (color: string) => string
@@ -128,26 +124,6 @@ export function agentsView(s: Snapshot): ListView {
       text: `${a.name} · ${a.type}`,
       startedAt: a.startedAt,
       ...(a.endedAt !== undefined ? { endedAt: a.endedAt } : {}),
-    })),
-  }
-}
-
-export function tasksView(s: Snapshot): ListView {
-  const { t } = s
-  const total = s.tasks.length
-  return {
-    key: 'relay-tasks',
-    icon: terminalIcon,
-    glyph: '⚙',
-    label: t.tasks,
-    running: s.runningTasks,
-    total,
-    headline:
-      total === 0 ? t.tasksNone : t.tasksCounts(s.runningTasks, total - s.runningTasks, total),
-    items: s.tasks.slice(-ITEMS_SHOWN).map(k => ({
-      text: k.status !== undefined ? `${k.name} · ${t.taskStatus(k.status)}` : k.name,
-      startedAt: k.startedAt,
-      ...(k.endedAt !== undefined ? { endedAt: k.endedAt } : {}),
     })),
   }
 }
@@ -322,7 +298,7 @@ function cachePill(els: Elements['desktop'], s: Snapshot, h: Handlers): RenderEl
   return pill(els, 'relay-cache', v.tone === 'calm' || v.tone === 'neutral' ? NEUTRAL : tintOf(color), parts)
 }
 
-/** Subagents or commands: running/total, red while any runs; the card lists the last few. */
+/** Subagents: running/total, red while any runs; the card lists the last few. */
 function listPill(els: Elements['desktop'], s: Snapshot, v: ListView): RenderElement {
   const { Text, Svg } = els
   const isBusy = v.running > 0
@@ -358,7 +334,6 @@ export function drawDesktopBand(
       costPill(els, s),
       cachePill(els, s, h),
       listPill(els, s, agentsView(s)),
-      listPill(els, s, tasksView(s)),
       s.handoff.phase === 'collecting' && Text({ dimColor: true, children: t.collecting }),
       s.handoff.phase === 'clearing' && Text({ dimColor: true, children: t.clearing }),
     ],
@@ -404,7 +379,6 @@ export function detailRows(s: Snapshot): Row[] {
     ...(c.isCold ? { color: TONE_COLOR.alert } : {}),
   })
   rows.push(...listRows(s, agentsView(s)))
-  rows.push(...listRows(s, tasksView(s)))
   return rows
 }
 
@@ -458,8 +432,6 @@ export function drawTextualBand(
   parts.push(Button({ key: 'relay-ping', label: '↻', plain: true, dimColor: true, onPress: h.ping }))
   parts.push(sep)
   parts.push(listText(els, agentsView(s)))
-  parts.push(sep)
-  parts.push(listText(els, tasksView(s)))
   parts.push(
     Button({
       key: 'relay-expand',

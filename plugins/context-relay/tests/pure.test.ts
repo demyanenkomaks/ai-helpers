@@ -22,7 +22,6 @@ import {
 } from '../hooks/handoff'
 import { languageOf } from '../hooks/i18n'
 import { appendLog, errorText, logFileFor } from '../hooks/log'
-import { shortCommand, taskName, taskNotes } from '../hooks/tasks'
 import { cacheLeftMs, pingsFor, ttlFromEnv } from '../hooks/warm'
 
 describe('bands', () => {
@@ -86,36 +85,6 @@ describe('cache', () => {
     expect(cacheHitPercent({ input_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 })).toBe(null)
     expect(withAlpha('#3fb950', 0.12)).toBe('rgba(63,185,80,0.12)')
     expect(withAlpha('red', 0.5)).toBe('red')
-  })
-})
-
-describe('tasks', () => {
-  test('task notifications give the id and status, one per block', async () => {
-    const text = [
-      '<task-notification>',
-      '<task-id>bg1</task-id>',
-      '<output-file>/tmp/bg1.log</output-file>',
-      '<status>completed</status>',
-      '<summary>Background command "npm test" completed (exit code 0)</summary>',
-      '</task-notification>',
-      'and <task-notification><task-id>bg2</task-id></task-notification>',
-    ].join('\n')
-    expect(taskNotes(text)).toEqual([
-      { id: 'bg1', status: 'completed' },
-      { id: 'bg2', status: 'completed' },
-    ])
-    expect(taskNotes('<task-notification><task-id>x</task-id><status>failed</status></task-notification>')).toEqual([
-      { id: 'x', status: 'failed' },
-    ])
-    expect(taskNotes('plain text')).toEqual([])
-  })
-
-  test('a command line is shown on one line, cut short', async () => {
-    expect(shortCommand('npm   run\n  build')).toBe('npm run build')
-    expect(shortCommand('x'.repeat(60))).toBe(`${'x'.repeat(47)}…`)
-    expect(taskName('Build the project', 'npm run build')).toBe('Build the project')
-    expect(taskName('  ', 'npm run build')).toBe('npm run build')
-    expect(taskName(undefined, 'npm run build')).toBe('npm run build')
   })
 })
 
