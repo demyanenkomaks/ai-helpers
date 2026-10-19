@@ -1,7 +1,7 @@
 {
   "name": "rm-guard",
-  "version": "0.2.0",
-  "description": "Stops the agent from deleting files without your say-so: reads rm, del, Remove-Item, find -delete through wrappers and refuses, telling the agent to ask you.",
+  "version": "0.3.0",
+  "description": "Stops the agent from deleting files without your say-so: reads rm, del, Remove-Item, find -delete through wrappers, shows you what would be deleted and asks before it runs.",
   "author": {
     "name": "demyanenkomaks"
   },

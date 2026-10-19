@@ -3,7 +3,8 @@
 # rm-guard: design
 
 Status: agreed 2026-10-19, implemented as `plugins/rm-guard` 0.1.0 the
-same day; 0.2.0 turned every ask into a deny (see Outcomes). This document is the contract
+same day; 0.2.0 turned every ask into a deny, which lost the
+confirmation; 0.3.0 restored it as the mod's own dialog (see Outcomes). This document is the contract
 the mod is built against; change it before changing behaviour.
 
 ## One line
@@ -62,19 +63,23 @@ Hooks run on both the Bash and the PowerShell tool.
 | Outcome | When |
 | --- | --- |
 | deny, with a hint | catastrophic targets: a disk root, a top-level system folder (depth 1), the home folder or a folder above it, the project root or a folder above it (`.`, `..`, `./*`), a `.git` folder; `allowPaths` never overrides these |
-| deny, "needs the user's approval" | any other call of a guarded command, a call with no checkable target, and any target the guard cannot resolve (`$VAR/*`, `$(...)`, paths piped in) |
+| ask (own dialog) | any other call of a guarded command, a call with no checkable target, and any target the guard cannot resolve (`$VAR/*`, `$(...)`, paths piped in) |
 | allow | the command is not in the list, or every target is inside `allowPaths` |
 
 The denial text names the rule that fired and a safer move (for example "move
 it to the trash or a scratch folder, or ask the user to run it").
 
-Every stop is delivered as a `deny`, never as an `ask`: an ask goes to the
-permission mode's decider, and auto mode answers it on its own (found in use:
-a plain `rm` of a temp file in a project passed unasked). The reason text
-tells the model what to do next: for a catastrophic target, do not delete it;
-for the rest, tell the user what and why and let them run the command or add
-the path to `allowPaths`. The analogs studied also block rather than ask,
-except `guardhook`'s ask on force-push.
+The point of the mod is control, not prohibition: the person sees what is
+about to be deleted and decides. So the question is put by the mod itself, in
+a `tool.call` hook through `$.ui.ask`, the engine's own dialog: it names the
+targets, shows the command and offers **Allow once** or **Deny**; free text
+under *Other* goes back to the model as the reason. A `tool.check` verdict of
+`ask` is not used: it goes to the permission mode's decider, and auto mode
+answers it on its own (found in use: a plain `rm` of a temp file passed
+unasked). Where the dialog cannot be shown (`claude -p`, dismissed) the call is
+denied. A catastrophic target is a plain deny with no dialog. The analogs
+studied block rather than ask, except `guardhook`'s ask on force-push; this
+mod asks because confirmation is the requirement.
 
 ### Exceptions
 
@@ -88,7 +93,7 @@ exception.
 Per the repository rule, the hook carries
 `.catch(($, e, next) => next.called ? next(e) : { deny: '...' })`: if the guard
 itself breaks, the call is denied, never passed. An unreadable construct (an encoded PowerShell command, nesting
-deeper than 6) is denied as needing approval.
+deeper than 6) falls to the dialog.
 
 ### Out of scope
 
@@ -121,10 +126,13 @@ and a thrown error turning into deny.
 
 ## Open items
 
-- Resolved while implementing: the hook is on `tool.check` (verdicts: `deny` with a
-  reason; the parser still tells the two cases apart for the wording) for the `Bash` and `PowerShell` tools; the `.catch`
-  answers `{ deny }`.
-- A *deny* holds in every permission mode; an *ask* does not (auto mode).
+- Resolved while implementing: the hook is a `tool.call` hook on the `Bash` and
+  `PowerShell` tools; the dialog is `$.ui.ask`, a refusal is `{ deny }`, and the
+  `.catch` answers `{ deny }`.
+- The dialog and a deny hold in every permission mode; a `tool.check` ask does
+  not (auto mode).
+- The reader does not know heredocs: a heredoc body line that starts with a
+  guarded command is read as that command, a false alarm on the safe side.
 - `find -delete` roots are never refused as catastrophic (they are search
   roots), only flagged as needing approval, except a disk root or a top-level folder.
 - The file layout is `hooks/register.ts`, `hooks/parse.ts` and

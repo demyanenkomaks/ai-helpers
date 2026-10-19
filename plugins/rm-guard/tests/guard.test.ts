@@ -1,4 +1,5 @@
 import { expect, mock, test } from 'claude-code/testing'
+import type { Engine, On } from 'claude-code/testing'
 
 import { allowFrom, commandsFrom, DEFAULT_COMMANDS, judge, normalize } from '../hooks/parse'
 import type { Policy, Shell } from '../hooks/parse'
@@ -164,37 +165,90 @@ test('paths fold to one shape across Windows, git-bash and WSL', async () => {
   expect(normalize('build/*', CWD)).toEqual({ path: 'w:/projects/demo/build', hasGlob: true })
 })
 
-test('the hook refuses every stop, with the right hint, and passes the rest', async ($, on) => {
+/** The engine beneath the plugin: tools that run, and a person who answers the dialog. */
+function bottom(on: On, answer: string | undefined) {
+  const asked: string[] = []
+  const ran: string[] = []
   mock.env(on, { HOME })
   on('session.cwd', () => ({ value: CWD }))
-  on('tool.check', () => ({ decision: 'allow' }))
+  on('tool.call', { tool: 'AskUserQuestion' }, (_$, e) => {
+    const questions = (e as unknown as { questions: Array<{ question: string }> }).questions
+    asked.push(questions[0]?.question ?? '')
+    if (answer === undefined) return { deny: 'dismissed' }
+    return { result: { questions, answers: { [questions[0]?.question ?? '']: answer } } } as never
+  })
+  on('tool.call', { tool: 'Bash' }, (_$, e) => {
+    ran.push((e as unknown as { command: string }).command)
+    return { result: { stdout: 'ok', stderr: '', interrupted: false } } as never
+  })
+  on('tool.call', { tool: 'PowerShell' }, (_$, e) => {
+    ran.push((e as unknown as { command: string }).command)
+    return { result: { stdout: 'ok', stderr: '', interrupted: false } } as never
+  })
+  return { asked, ran }
+}
 
-  const bash = (command: string) => $.tool.check({ tool: 'Bash', input: { command } })
-  const shell = (command: string) => $.tool.check({ tool: 'PowerShell', input: { command } })
+const call = ($: Engine, tool: 'Bash' | 'PowerShell', command: string) =>
+  $.tool.call({ tool, command } as never)
 
-  expect((await bash('ls')).decision).toBe('allow')
-  const gray = await bash('rm -rf node_modules')
-  expect(gray.decision).toBe('deny')
-  expect(gray.reason).toContain('rm-guard')
-  expect(gray.reason).toContain('Allowed paths')
-  const worst = await bash('rm -rf /')
-  expect(worst.decision).toBe('deny')
-  expect(worst.reason).toContain('trash')
-  expect((await shell('Remove-Item -Recurse dist')).decision).toBe('deny')
-  expect((await $.tool.check({ tool: 'Read', input: { file_path: 'x' } })).decision).toBe('allow')
+test('a plain deletion opens the dialog, and Allow once lets it run', async ($, on) => {
+  const { asked, ran } = bottom(on, 'Allow once')
+  const result = await call($, 'Bash', 'rm -rf node_modules')
+  expect(result.deny).toBe(undefined)
+  expect(ran).toEqual(['rm -rf node_modules'])
+  expect(asked).toHaveLength(1)
+  expect(asked[0]).toContain('node_modules')
+  expect(asked[0]).toContain('rm -rf node_modules')
+})
+
+test('Deny stops it and the model reads the refusal', async ($, on) => {
+  const denied = bottom(on, 'Deny')
+  const first = await call($, 'Bash', 'rm file.txt')
+  expect(first.deny).toContain('refused')
+  expect(denied.ran).toEqual([])
+})
+
+test('Other text is the reason the model reads', async ($, on) => {
+  const { ran } = bottom(on, 'keep it, I still need that')
+  const result = await call($, 'Bash', 'rm file.txt')
+  expect(result.deny).toContain('keep it, I still need that')
+  expect(ran).toEqual([])
+})
+
+test('an unanswerable dialog denies, never passes', async ($, on) => {
+  const { ran } = bottom(on, undefined)
+  const result = await call($, 'Bash', 'rm file.txt')
+  expect(result.deny).toContain('could not be asked')
+  expect(ran).toEqual([])
+})
+
+test('a catastrophic target is refused without a dialog', async ($, on) => {
+  const { asked, ran } = bottom(on, 'Allow once')
+  const result = await call($, 'Bash', 'rm -rf /')
+  expect(result.deny).toContain('trash')
+  expect(asked).toEqual([])
+  expect(ran).toEqual([])
+})
+
+test('commands that delete nothing run without a dialog, PowerShell included', async ($, on) => {
+  const { asked, ran } = bottom(on, 'Deny')
+  expect((await call($, 'Bash', 'ls -la')).deny).toBe(undefined)
+  expect((await call($, 'PowerShell', 'Get-ChildItem')).deny).toBe(undefined)
+  expect(asked).toEqual([])
+  expect(ran).toEqual(['ls -la', 'Get-ChildItem'])
+  expect((await call($, 'PowerShell', 'Remove-Item -Recurse dist')).deny).toContain('refused')
+  expect(asked).toHaveLength(1)
 })
 
 test(
-  'allowPaths from settings reach the hook',
+  'allowPaths from settings skip the dialog',
   { options: { allowPaths: 'node_modules', commands: 'rm' } },
   async ($, on) => {
-    mock.env(on, { HOME })
-    on('session.cwd', () => ({ value: CWD }))
-    on('tool.check', () => ({ decision: 'allow' }))
-
-    const bash = (command: string) => $.tool.check({ tool: 'Bash', input: { command } })
-    expect((await bash('rm -rf node_modules')).decision).toBe('allow')
-    expect((await bash('rm -rf src')).decision).toBe('deny')
-    expect((await bash('rmdir src')).decision).toBe('allow')
+    const { asked, ran } = bottom(on, 'Deny')
+    expect((await call($, 'Bash', 'rm -rf node_modules')).deny).toBe(undefined)
+    expect(asked).toEqual([])
+    expect((await call($, 'Bash', 'rm -rf src')).deny).toContain('refused')
+    expect((await call($, 'Bash', 'rmdir src')).deny).toBe(undefined)
+    expect(ran).toEqual(['rm -rf node_modules', 'rmdir src'])
   },
 )
