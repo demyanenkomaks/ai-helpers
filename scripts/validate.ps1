@@ -54,7 +54,7 @@ $docFiles = @(Get-ChildItem $root -Recurse -Filter '*.md' -File |
   Where-Object {
     $_.FullName -notmatch '[\\/]\.git[\\/]' -and
     $_.Name -ne 'CLAUDE.md' -and $_.Name -ne 'SKILL.md' -and
-    $_.FullName -notmatch '[\\/](skills|commands|agents|references|examples)[\\/]' -and
+    $_.FullName -notmatch '[\\/](skills|commands|agents|references|examples|assets)[\\/]' -and
     $_.FullName -notmatch '[\\/]templates[\\/][^\\/]+[\\/]'
   })
 foreach ($doc in $docFiles) {

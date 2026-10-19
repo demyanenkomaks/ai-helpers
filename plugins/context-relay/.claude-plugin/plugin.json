@@ -1,0 +1,44 @@
+{
+  "name": "context-relay",
+  "version": "0.3.0",
+  "description": "Context weather, prompt-cache warming and one-click handoff of the conversation into a fresh chat: one band above the prompt.",
+  "author": {
+    "name": "demy-maks"
+  },
+  "license": "MIT",
+  "keywords": ["context", "tokens", "prompt-cache", "handoff", "mod", "band"],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "warm": {
+      "type": "string",
+      "title": "Keep the prompt cache warm",
+      "description": "While the session idles, ping the model from the cache every 55 minutes for this many hours so the cache never cools. Each ping spends the 5-hour limit and reads the whole context from cache.",
+      "default": "4h",
+      "options": ["off", "2h", "4h", "8h"]
+    },
+    "autoHandoffAt": {
+      "type": "number",
+      "title": "Automatic handoff at (tokens)",
+      "description": "When the context reaches this many tokens after a turn, collect a handoff and clear the chat after a countdown. 0 disables.",
+      "default": 500000
+    },
+    "countdownSeconds": {
+      "type": "number",
+      "title": "Countdown before an automatic clear (seconds)",
+      "description": "How long the Cancel button stays up before the automatic handoff clears the chat.",
+      "default": 30
+    },
+    "bands": {
+      "type": "string",
+      "title": "Weather band boundaries (tokens)",
+      "description": "Three rising numbers separated by commas: Clear below the first, Overcast below the second, Rain below the third, Storm from the third up.",
+      "default": "100000,250000,350000"
+    },
+    "handoffDir": {
+      "type": "string",
+      "title": "Handoff folder",
+      "description": "Where handoff files are written. Empty means ~/.claude/context-relay/handoff.",
+      "default": ""
+    }
+  }
+}

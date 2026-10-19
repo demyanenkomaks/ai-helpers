@@ -2,8 +2,10 @@
 
 # context-relay: design
 
-Status: agreed 2026-10-19, not implemented. This document is the contract the
-mod is built against; change it before changing behaviour.
+Status: agreed 2026-10-19, implemented as `plugins/context-relay` 0.1.0 the
+same day. This document is the contract the mod is built against; change it
+before changing behaviour. Deviations found while implementing are listed at
+the end.
 
 ## One line
 
@@ -168,3 +170,64 @@ line entry, sounds, per-subagent token accounting.
   desktop-hosted session as it is in the terminal.
 - Hover cards on the desktop surface for an AbovePrompt tree (augiefra draws
   them, so the primitives exist).
+
+## Deviations found while implementing (0.1.0)
+
+- The engine follows `$` only inside one file, so every hook and every
+  function that touches `$` lives in `hooks/register.tsx`; atoms are declared
+  there with literal `plugin` and `key`. Pure helpers stay in their own files.
+- JSX works only in the hooks module; `draw.ts` builds trees by calling the
+  surface's element constructors directly.
+- A Button takes one string label only, so the ⇄ button signals the band by
+  being dim below Rain and bright from Rain upward, not by colour.
+- The desktop surface refuses `weight`, `tabular` and named `gap` steps in this
+  build; the band uses `bold` and numeric gaps.
+- The "Load" press with turns already in the conversation appends a hidden
+  user row; the test kit of this build has no bottom for `session.append`, so
+  that path is covered by reasoning, not by a test. The before-first-turn
+  path (delivery through `prompt.context`) is tested.
+- Cache TTL comes from the environment only (5 minutes when forced, else 1
+  hour); the traffic heuristic of the augiefra mod is not ported.
+
+### 0.2.0, after the first live run
+
+- **Language.** A desktop-hosted session starts with no surface attached, so
+  the surface is read at draw time, not at start: the system language is
+  detected once (locale variables, else the Windows culture), the desktop
+  draws in it and the terminal in English.
+- **Clearing.** In the desktop app `$.command.run({ command: "clear" })` did
+  not clear the chat. The flow now verifies with the turn count and, where the
+  chat still has turns, calls `$.session.compact()` and answers that compaction
+  with the handoff alone, so the conversation becomes the note in place. The
+  mod's own `session.compact` hook is not run for its own call (re-entry); the
+  registration's `.catch` answers instead, from module values and no `$` call.
+- **Look.** The compact line with a hover card gave way to a row of pills in
+  the style of Token Weather Usage: weather with sparkline and last-turn
+  delta, 5-hour and 7-day gauges with pacing colours and elapsed/left time,
+  cache with hit share and warm-up pings, session cost, subagents, ⇄. Each
+  pill still has its hover card on the desktop; the terminal draws one line
+  with text gauges and ▾ for the details.
+
+### 0.3.0, after the second live run
+
+- **No `session.start` after `/clear`.** The engine ends the session with
+  reason `clear`, goes on under a new session id and fires no `session.start`
+  for it (its own documentation says so). After a clear the band therefore
+  stayed empty and English: the readings had been reset and the language was
+  never detected again. The start work now lives in one routine that
+  `session.start` runs and that every other entry point (a turn, a command,
+  the first drawing through a 1 ms timer) runs too when the session id is not
+  the one it last began; `session.end` with reason `clear` forgets the id.
+  The same routine covers a mod loaded into a running session, which never
+  saw a start either.
+- **Clearing, again.** `$.command.run({ command: "clear" })` only queues the
+  line `/clear` as a prompt. Whether it took is now checked by the session id
+  and the turn count, and the line is next submitted through
+  `$.prompt.submit` before the compaction fallback. The compaction's refusal
+  (the engine rejects a plugin's compact while a turn runs, or while an
+  external turn drives the conversation) is shown in the engine's own words
+  instead of a generic line, and the line clears at the next turn.
+- **A log.** `~/.claude/context-relay/context-relay.log` (64 KB, oldest lines
+  dropped) records what the mod saw the engine do: session begin and end,
+  readings, each step of a handoff and its outcome, compactions. It exists so
+  the next live run can be read without a debugger.
