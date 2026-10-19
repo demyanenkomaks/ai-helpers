@@ -16,7 +16,7 @@
 
 | Плагин | Тип | Статус |
 | --- | --- | --- |
-| [context-relay](plugins/context-relay/README.ru.md) | мод | 0.3.0 |
+| [context-relay](plugins/context-relay/README.ru.md) | мод | 0.4.0 |
 
 ## Установка
 

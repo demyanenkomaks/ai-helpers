@@ -74,16 +74,6 @@ export function formatDuration(ms: number): string {
   return `${hours}h ${String(rest).padStart(2, '0')}m`
 }
 
-/** "3h00" under a day, "2d23h" from a day up; "0h00" for nothing. */
-export function formatSpan(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 60_000))
-  const days = Math.floor(total / (24 * 60))
-  const hours = Math.floor((total % (24 * 60)) / 60)
-  const minutes = total % 60
-  if (days > 0) return `${days}d${String(hours).padStart(2, '0')}h`
-  return `${hours}h${String(minutes).padStart(2, '0')}`
-}
-
 /** "#3fb950" at an alpha, as "rgba(63,185,80,0.12)"; a non-hex colour is returned as is. */
 export function withAlpha(hex: string, alpha: number): string {
   const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex)
@@ -101,21 +91,6 @@ export const TONE_COLOR: Record<Tone, string> = {
   neutral: '#8b949e',
 }
 
-/** The pacing rule: red at 90% used or 15 points ahead of the clock, yellow when any ahead. */
-export function toneOf(usedPercent: number, elapsedPercent: number | null): Tone {
-  const pace = elapsedPercent === null ? 0 : usedPercent - elapsedPercent
-  if (usedPercent >= 90 || pace > 15) return 'alert'
-  if (pace > 0) return 'fast'
-  return 'calm'
-}
-
-/** A rate-limit window's length in ms by its kind; null for an unknown kind. */
-export function windowSpanMs(kind: string): number | null {
-  if (kind === 'five_hour') return 5 * 60 * 60 * 1000
-  if (kind === 'seven_day') return 7 * 24 * 60 * 60 * 1000
-  return null
-}
-
 /** The share of a prompt the cache served, 0..100. */
 export function cacheHitPercent(usage: {
   input_tokens: number
@@ -126,12 +101,6 @@ export function cacheHitPercent(usage: {
     usage.input_tokens + usage.cache_read_input_tokens + usage.cache_creation_input_tokens
   if (total <= 0) return null
   return Math.round((usage.cache_read_input_tokens / total) * 100)
-}
-
-/** A terminal gauge of `cells` cells: filled blocks for the used share. */
-export function textGauge(usedPercent: number, cells = 8): string {
-  const filled = Math.round((Math.max(0, Math.min(100, usedPercent)) / 100) * cells)
-  return '█'.repeat(filled) + '░'.repeat(cells - filled)
 }
 
 /** "14:30" in the local clock. */

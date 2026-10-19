@@ -5,16 +5,6 @@ export type Strings = {
   window: string
   recentTurns: string
   lastTurn: string
-  limit5h: string
-  limit7d: string
-  limit5hLong: string
-  limit7dLong: string
-  used: string
-  elapsed: string
-  left: string
-  resetsAt: (clock: string) => string
-  pace: (points: number) => string
-  onPace: string
   cache: string
   cacheLong: string
   cacheCold: string
@@ -30,6 +20,10 @@ export type Strings = {
   agents: string
   agentsNone: string
   agentsCounts: (running: number, finished: number, total: number) => string
+  tasks: string
+  tasksNone: string
+  tasksCounts: (running: number, finished: number, total: number) => string
+  taskStatus: (status: string) => string
   handoff: string
   collecting: string
   clearing: string
@@ -56,16 +50,6 @@ const en: Strings = {
   window: 'window',
   recentTurns: 'Recent turns',
   lastTurn: 'last turn',
-  limit5h: '5h',
-  limit7d: '7d',
-  limit5hLong: '5-hour limit',
-  limit7dLong: '7-day limit',
-  used: 'used',
-  elapsed: 'elapsed',
-  left: 'left',
-  resetsAt: clock => `Resets at ${clock}`,
-  pace: points => `${points} pts ahead of the clock`,
-  onPace: 'behind the clock, fine',
   cache: 'cache',
   cacheLong: 'Prompt cache',
   cacheCold: 'expired',
@@ -82,6 +66,11 @@ const en: Strings = {
   agentsNone: 'No subagents yet',
   agentsCounts: (running, finished, total) =>
     `${running} running · ${finished} finished · ${total} total`,
+  tasks: 'Commands',
+  tasksNone: 'No commands yet',
+  tasksCounts: (running, finished, total) =>
+    `${running} running · ${finished} finished · ${total} total`,
+  taskStatus: status => status,
   handoff: 'Hand the context over to a fresh chat',
   collecting: 'Collecting the handoff…',
   clearing: 'Handoff saved, clearing the chat…',
@@ -105,21 +94,19 @@ const en: Strings = {
   collapse: 'Hide details',
 }
 
+const RU_STATUS: Record<string, string> = {
+  completed: 'завершена',
+  failed: 'ошибка',
+  interrupted: 'прервана',
+  denied: 'отклонена',
+  killed: 'остановлена',
+}
+
 const ru: Strings = {
   band: { clear: 'Ясно', overcast: 'Пасмурно', rain: 'Дождь', storm: 'Гроза' },
   window: 'окно',
   recentTurns: 'Последние ходы',
   lastTurn: 'последний ход',
-  limit5h: '5ч',
-  limit7d: '7д',
-  limit5hLong: 'Лимит 5 часов',
-  limit7dLong: 'Лимит 7 дней',
-  used: 'израсходовано',
-  elapsed: 'прошло',
-  left: 'осталось',
-  resetsAt: clock => `Сброс в ${clock}`,
-  pace: points => `на ${points} п. впереди времени`,
-  onPace: 'позади времени, норма',
   cache: 'кэш',
   cacheLong: 'Кэш промпта',
   cacheCold: 'остыл',
@@ -136,6 +123,11 @@ const ru: Strings = {
   agentsNone: 'Субагентов ещё не было',
   agentsCounts: (running, finished, total) =>
     `${running} работает · ${finished} завершено · ${total} всего`,
+  tasks: 'Команды',
+  tasksNone: 'Команд ещё не было',
+  tasksCounts: (running, finished, total) =>
+    `${running} работает · ${finished} завершено · ${total} всего`,
+  taskStatus: status => RU_STATUS[status] ?? status,
   handoff: 'Передать контекст в новый чат',
   collecting: 'Собираю сводку…',
   clearing: 'Сводка сохранена, очищаю чат…',

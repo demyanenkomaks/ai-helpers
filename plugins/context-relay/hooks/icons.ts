@@ -36,22 +36,6 @@ export function weatherIcon(band: ContextRelayBand, color: string): string {
   }
 }
 
-export function clockIcon(color: string): string {
-  return wrap(
-    `<circle cx="8" cy="8" r="6" fill="none" stroke="${color}" stroke-width="1.5"/>` +
-      `<path d="M8 4.5V8l2.5 1.5" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/>`,
-  )
-}
-
-export function calendarIcon(color: string): string {
-  return wrap(
-    `<rect x="2" y="3.5" width="12" height="10.5" rx="1.5" fill="none" stroke="${color}" stroke-width="1.5"/>` +
-      `<line x1="2" y1="6.5" x2="14" y2="6.5" stroke="${color}" stroke-width="1.5"/>` +
-      `<line x1="5" y1="2" x2="5" y2="5" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/>` +
-      `<line x1="11" y1="2" x2="11" y2="5" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/>`,
-  )
-}
-
 export function boltIcon(color: string): string {
   return wrap(`<path fill="${color}" d="M9.5 1 3.5 9h4l-1 6 6-8h-4z"/>`)
 }
@@ -76,41 +60,18 @@ export function peopleIcon(color: string): string {
   )
 }
 
+export function terminalIcon(color: string): string {
+  return wrap(
+    `<rect x="1.5" y="2.5" width="13" height="11" rx="1.8" fill="none" stroke="${color}" stroke-width="1.4"/>` +
+      `<path d="M4.5 6l2.5 2-2.5 2M8 10.5h3.5" fill="none" stroke="${color}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>`,
+  )
+}
+
 export function relayIcon(color: string): string {
   return wrap(
     `<g fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">` +
       `<path d="M2.5 5.5h9.5M9.5 3l2.5 2.5L9.5 8"/><path d="M13.5 10.5H4M6.5 8 4 10.5 6.5 13"/></g>`,
   )
-}
-
-export const GAUGE = { width: 54, height: 9 } as const
-
-/**
- * A rounded track with the used share filled in the tone's colour; where
- * usage runs ahead of the clock, the part past the elapsed share is drawn
- * lighter so the lead is visible.
- */
-export function gaugeSvg(
-  usedPercent: number,
-  elapsedPercent: number | null,
-  color: string,
-): string {
-  const { width: w, height: h } = GAUGE
-  const clamp = (n: number) => Math.max(0, Math.min(100, n))
-  const used = (clamp(usedPercent) / 100) * w
-  const elapsed = elapsedPercent === null ? used : (clamp(elapsedPercent) / 100) * w
-  const solid = Math.min(used, elapsed)
-  const ahead = used > elapsed ? used - elapsed : 0
-  const r = h / 2
-  const body =
-    `<rect x="0" y="0" width="${w}" height="${h}" rx="${r}" fill="rgba(127,127,127,0.2)"/>` +
-    (solid > 0
-      ? `<rect x="0" y="0" width="${solid.toFixed(1)}" height="${h}" rx="${r}" fill="${color}"/>`
-      : '') +
-    (ahead > 0
-      ? `<rect x="${solid.toFixed(1)}" y="0" width="${ahead.toFixed(1)}" height="${h}" fill="${color}" opacity="0.45"/>`
-      : '')
-  return wrap(body, w, h)
 }
 
 export const SPARK = { width: 40, height: 10 } as const

@@ -1,6 +1,6 @@
 {
   "name": "context-relay",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Context weather, prompt-cache warming and one-click handoff of the conversation into a fresh chat: one band above the prompt.",
   "author": {
     "name": "demy-maks"

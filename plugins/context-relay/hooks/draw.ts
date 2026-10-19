@@ -7,31 +7,25 @@ import {
   barsOf,
   formatClock,
   formatDuration,
-  formatSpan,
   formatTokens,
   formatUsd,
-  textGauge,
-  toneOf,
-  windowSpanMs,
   withAlpha,
 } from './bands'
 import type { Tone } from './bands'
 import type { Strings } from './i18n'
 import {
   boltIcon,
-  calendarIcon,
-  clockIcon,
   coinIcon,
-  gaugeSvg,
   peopleIcon,
   sparklineSvg,
+  terminalIcon,
   weatherIcon,
 } from './icons'
 import type {
   ContextRelayAgent,
   ContextRelayBand,
   ContextRelayHandoff,
-  ContextRelayLimit,
+  ContextRelayTask,
 } from '../types'
 
 /**
@@ -39,7 +33,8 @@ import type {
  * the handlers (it owns `$`), these functions turn them into trees by calling
  * the surface's element constructors (JSX is only available in the hooks
  * module). The desktop band is a row of pills after Token Weather Usage by
- * augiefra; the terminal band is one line of text.
+ * augiefra, in the order weather (with ⇄), cost, cache, subagents, commands;
+ * the terminal band is one line of text in the same order.
  */
 
 export type Snapshot = {
@@ -57,7 +52,8 @@ export type Snapshot = {
   warmIsOn: boolean
   agents: ContextRelayAgent[]
   running: number
-  limits: ContextRelayLimit[]
+  tasks: ContextRelayTask[]
+  runningTasks: number
   cost: { usd: number; lastUsd: number }
   handoff: ContextRelayHandoff
   isExpanded: boolean
@@ -79,43 +75,6 @@ export type CommonElements = Pick<Elements['terminal'], 'Box' | 'Text' | 'Button
 /* Derived views                                                       */
 /* ------------------------------------------------------------------ */
 
-export type LimitView = {
-  kind: string
-  short: string
-  long: string
-  used: number
-  elapsed: number | null
-  leftMs: number | null
-  resetsAt: number | null
-  tone: Tone
-}
-
-export function limitView(
-  limit: ContextRelayLimit,
-  now: number,
-  t: Strings,
-): LimitView {
-  const span = windowSpanMs(limit.kind)
-  const resetsAt = limit.resetsAt ? Date.parse(limit.resetsAt) : NaN
-  const leftMs =
-    Number.isFinite(resetsAt) ? Math.max(0, resetsAt - now) : null
-  const elapsed =
-    span !== null && leftMs !== null
-      ? Math.max(0, Math.min(100, ((span - leftMs) / span) * 100))
-      : null
-  const isWeek = limit.kind === 'seven_day'
-  return {
-    kind: limit.kind,
-    short: isWeek ? t.limit7d : t.limit5h,
-    long: isWeek ? t.limit7dLong : t.limit5hLong,
-    used: limit.percentUsed,
-    elapsed,
-    leftMs,
-    resetsAt: Number.isFinite(resetsAt) ? resetsAt : null,
-    tone: toneOf(limit.percentUsed, elapsed),
-  }
-}
-
 type CacheView = { text: string; tone: Tone; isCold: boolean }
 
 export function cacheView(s: Snapshot): CacheView {
@@ -135,6 +94,79 @@ function tokensText(s: Snapshot): string {
 }
 
 type Row = { label: string; value: string; color?: string }
+
+/** One entry of a list pill: a subagent or a command. */
+type ListItem = { text: string; startedAt: number; endedAt?: number }
+
+/** What the subagents pill and the commands pill share. */
+type ListView = {
+  key: string
+  icon: (color: string) => string
+  glyph: string
+  label: string
+  running: number
+  total: number
+  /** The first card row: the counts, or the "none yet" line. */
+  headline: string
+  items: ListItem[]
+}
+
+const ITEMS_SHOWN = 6
+
+export function agentsView(s: Snapshot): ListView {
+  const { t } = s
+  const total = s.agents.length
+  return {
+    key: 'relay-agents',
+    icon: peopleIcon,
+    glyph: '👥',
+    label: t.agents,
+    running: s.running,
+    total,
+    headline: total === 0 ? t.agentsNone : t.agentsCounts(s.running, total - s.running, total),
+    items: s.agents.slice(-ITEMS_SHOWN).map(a => ({
+      text: `${a.name} · ${a.type}`,
+      startedAt: a.startedAt,
+      ...(a.endedAt !== undefined ? { endedAt: a.endedAt } : {}),
+    })),
+  }
+}
+
+export function tasksView(s: Snapshot): ListView {
+  const { t } = s
+  const total = s.tasks.length
+  return {
+    key: 'relay-tasks',
+    icon: terminalIcon,
+    glyph: '⚙',
+    label: t.tasks,
+    running: s.runningTasks,
+    total,
+    headline:
+      total === 0 ? t.tasksNone : t.tasksCounts(s.runningTasks, total - s.runningTasks, total),
+    items: s.tasks.slice(-ITEMS_SHOWN).map(k => ({
+      text: k.status !== undefined ? `${k.name} · ${t.taskStatus(k.status)}` : k.name,
+      startedAt: k.startedAt,
+      ...(k.endedAt !== undefined ? { endedAt: k.endedAt } : {}),
+    })),
+  }
+}
+
+/** The rows of a list pill's card (desktop) or its expanded details (terminal). */
+function listRows(s: Snapshot, v: ListView): Row[] {
+  const rows: Row[] = [
+    { label: v.label, value: v.headline, ...(v.total === 0 ? { color: COLOR_DIM } : {}) },
+  ]
+  for (const item of v.items) {
+    const isRunning = item.endedAt === undefined
+    rows.push({
+      label: '',
+      value: `${isRunning ? '●' : '○'} ${item.text} · ${formatDuration((item.endedAt ?? s.now) - item.startedAt)}`,
+      color: isRunning ? TONE_COLOR.alert : COLOR_DIM,
+    })
+  }
+  return rows
+}
 
 /* ------------------------------------------------------------------ */
 /* Desktop: pills                                                      */
@@ -202,8 +234,9 @@ function card(els: Elements['desktop'], rows: Row[]): RenderElement {
   })
 }
 
-function weatherPill(els: Elements['desktop'], s: Snapshot): RenderElement {
-  const { Text, Svg } = els
+/** Weather: the icon alone carries the band's colour; ⇄ sits at the end, bright from Rain upward. */
+function weatherPill(els: Elements['desktop'], s: Snapshot, h: Handlers): RenderElement {
+  const { Text, Svg, Button } = els
   const { t } = s
   const rows: Row[] = [
     {
@@ -218,59 +251,36 @@ function weatherPill(els: Elements['desktop'], s: Snapshot): RenderElement {
       value: `${barsOf(s.deltas)}  +${formatTokens(s.lastDelta ?? 0)} ${t.lastTurn}`,
     })
   }
-  return pill(els, 'relay-weather', tintOf(s.color), [
+  return pill(els, 'relay-weather', NEUTRAL, [
     Svg({ source: weatherIcon(s.band, s.color), alt: t.band[s.band], width: 15, height: 15 }),
-    Text({ bold: true, color: s.color, children: tokensText(s) }),
+    Text({ bold: true, children: tokensText(s) }),
     s.deltas.length > 0 &&
-      Svg({ source: sparklineSvg(s.deltas, s.color), alt: t.recentTurns, width: 40, height: 10 }),
+      Svg({ source: sparklineSvg(s.deltas, COLOR_DIM), alt: t.recentTurns, width: 40, height: 10 }),
     s.lastDelta !== undefined &&
       Text({ dimColor: true, children: `▲ +${formatTokens(s.lastDelta)}` }),
+    Button({
+      key: 'relay-handoff',
+      label: '⇄',
+      plain: true,
+      dimColor: !isRelayHot(s),
+      onPress: h.relay,
+    }),
     card(els, rows),
   ])
 }
 
-function limitPill(els: Elements['desktop'], s: Snapshot, v: LimitView): RenderElement {
+function costPill(els: Elements['desktop'], s: Snapshot): RenderElement | false {
   const { Text, Svg } = els
   const { t } = s
-  const color = TONE_COLOR[v.tone]
-  const icon = v.kind === 'seven_day' ? calendarIcon(color) : clockIcon(color)
-  const timeText =
-    v.leftMs === null
-      ? ''
-      : v.kind === 'seven_day'
-        ? formatSpan(v.leftMs)
-        : v.elapsed !== null
-          ? formatSpan(((v.elapsed / 100) * (windowSpanMs(v.kind) ?? 0)))
-          : formatSpan(v.leftMs)
-  const rows: Row[] = [
-    { label: v.long, value: `${v.used}% ${t.used}`, color },
-  ]
-  if (v.elapsed !== null) {
-    rows.push({ label: '', value: `${Math.round(v.elapsed)}% ${t.elapsed}` })
-    const pace = Math.round(v.used - v.elapsed)
-    rows.push({
-      label: '',
-      value: pace > 0 ? t.pace(pace) : t.onPace,
-      color: pace > 0 ? color : COLOR_DIM,
-    })
-  }
-  if (v.resetsAt !== null) {
-    rows.push({
-      label: '',
-      value:
-        v.kind === 'seven_day'
-          ? `${formatSpan(v.leftMs ?? 0)} ${t.left}`
-          : t.resetsAt(formatClock(v.resetsAt)),
-      color: COLOR_DIM,
-    })
-  }
-  return pill(els, `relay-${v.kind}`, v.tone === 'calm' ? NEUTRAL : tintOf(color), [
-    Svg({ source: icon, alt: v.long, width: 14, height: 14 }),
-    Text({ children: v.short }),
-    Svg({ source: gaugeSvg(v.used, v.elapsed, color), alt: `${v.used}%`, width: 54, height: 9 }),
-    Text({ bold: true, color: v.tone === 'alert' ? 'red' : undefined, children: `${v.used}%` }),
-    timeText !== '' && Text({ dimColor: true, children: timeText }),
-    card(els, rows),
+  if (s.cost.usd <= 0) return false
+  return pill(els, 'relay-cost', NEUTRAL, [
+    Svg({ source: coinIcon(TONE_COLOR.fast), alt: t.cost, width: 14, height: 14 }),
+    Text({ bold: true, children: `≈ ${formatUsd(s.cost.usd)}` }),
+    s.cost.lastUsd > 0 && Text({ dimColor: true, children: `+${formatUsd(s.cost.lastUsd)}` }),
+    card(els, [
+      { label: t.cost, value: formatUsd(s.cost.usd) },
+      { label: '', value: `${formatUsd(s.cost.lastUsd)} ${t.lastPrompt}`, color: COLOR_DIM },
+    ]),
   ])
 }
 
@@ -312,55 +322,20 @@ function cachePill(els: Elements['desktop'], s: Snapshot, h: Handlers): RenderEl
   return pill(els, 'relay-cache', v.tone === 'calm' || v.tone === 'neutral' ? NEUTRAL : tintOf(color), parts)
 }
 
-function costPill(els: Elements['desktop'], s: Snapshot): RenderElement | false {
+/** Subagents or commands: running/total, red while any runs; the card lists the last few. */
+function listPill(els: Elements['desktop'], s: Snapshot, v: ListView): RenderElement {
   const { Text, Svg } = els
-  const { t } = s
-  if (s.cost.usd <= 0) return false
-  return pill(els, 'relay-cost', NEUTRAL, [
-    Svg({ source: coinIcon(TONE_COLOR.fast), alt: t.cost, width: 14, height: 14 }),
-    Text({ bold: true, children: `≈ ${formatUsd(s.cost.usd)}` }),
-    s.cost.lastUsd > 0 && Text({ dimColor: true, children: `+${formatUsd(s.cost.lastUsd)}` }),
-    card(els, [
-      { label: t.cost, value: formatUsd(s.cost.usd) },
-      { label: '', value: `${formatUsd(s.cost.lastUsd)} ${t.lastPrompt}`, color: COLOR_DIM },
-    ]),
-  ])
-}
-
-function agentsPill(els: Elements['desktop'], s: Snapshot): RenderElement {
-  const { Text, Svg } = els
-  const { t } = s
-  const isBusy = s.running > 0
+  const isBusy = v.running > 0
   const color = isBusy ? TONE_COLOR.alert : TONE_COLOR.neutral
-  const rows: Row[] = [
-    {
-      label: t.agents,
-      value:
-        s.agents.length === 0
-          ? t.agentsNone
-          : t.agentsCounts(s.running, s.agents.length - s.running, s.agents.length),
-    },
-  ]
-  for (const agent of s.agents.slice(-6)) {
-    const isRunning = agent.endedAt === undefined
-    rows.push({
-      label: '',
-      value: `${isRunning ? '●' : '○'} ${agent.name} · ${agent.type} · ${formatDuration((agent.endedAt ?? s.now) - agent.startedAt)}`,
-      color: isRunning ? TONE_COLOR.alert : COLOR_DIM,
-    })
-  }
-  return pill(els, 'relay-agents', isBusy ? tintOf(color) : NEUTRAL, [
-    Svg({ source: peopleIcon(color), alt: t.agents, width: 14, height: 14 }),
-    Text({ bold: isBusy, color: isBusy ? 'red' : undefined, dimColor: !isBusy, children: `${s.running}/${s.agents.length}` }),
-    card(els, rows),
-  ])
-}
-
-function relayPill(els: Elements['desktop'], s: Snapshot, h: Handlers): RenderElement {
-  const { Button } = els
-  const hot = isRelayHot(s)
-  return pill(els, 'relay-handoff-pill', hot ? tintOf(s.color) : NEUTRAL, [
-    Button({ key: 'relay-handoff', label: '⇄', plain: true, dimColor: !hot, onPress: h.relay }),
+  return pill(els, v.key, isBusy ? tintOf(color) : NEUTRAL, [
+    Svg({ source: v.icon(color), alt: v.label, width: 14, height: 14 }),
+    Text({
+      bold: isBusy,
+      color: isBusy ? 'red' : undefined,
+      dimColor: !isBusy,
+      children: `${v.running}/${v.total}`,
+    }),
+    card(els, listRows(s, v)),
   ])
 }
 
@@ -372,10 +347,6 @@ export function drawDesktopBand(
 ): RenderElement {
   const { Box, Text } = els
   const { t } = s
-  const limits = s.limits
-    .map(l => limitView(l, s.now, t))
-    .filter(v => v.kind === 'five_hour' || v.kind === 'seven_day')
-    .sort(a => (a.kind === 'five_hour' ? -1 : 1))
   const line = Box({
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -383,12 +354,11 @@ export function drawDesktopBand(
     columnGap: 1,
     rowGap: 1,
     children: [
-      weatherPill(els, s),
-      ...limits.map(v => limitPill(els, s, v)),
-      cachePill(els, s, h),
+      weatherPill(els, s, h),
       costPill(els, s),
-      agentsPill(els, s),
-      relayPill(els, s, h),
+      cachePill(els, s, h),
+      listPill(els, s, agentsView(s)),
+      listPill(els, s, tasksView(s)),
       s.handoff.phase === 'collecting' && Text({ dimColor: true, children: t.collecting }),
       s.handoff.phase === 'clearing' && Text({ dimColor: true, children: t.clearing }),
     ],
@@ -418,22 +388,10 @@ export function detailRows(s: Snapshot): Row[] {
       value: `${barsOf(s.deltas)}  +${formatTokens(s.lastDelta ?? 0)} ${t.lastTurn}`,
     })
   }
-  for (const l of s.limits) {
-    const v = limitView(l, s.now, t)
-    if (v.kind !== 'five_hour' && v.kind !== 'seven_day') continue
-    const parts = [`${v.used}% ${t.used}`]
-    if (v.elapsed !== null) parts.push(`${Math.round(v.elapsed)}% ${t.elapsed}`)
-    if (v.resetsAt !== null) {
-      parts.push(
-        v.kind === 'seven_day'
-          ? `${formatSpan(v.leftMs ?? 0)} ${t.left}`
-          : t.resetsAt(formatClock(v.resetsAt)).toLowerCase(),
-      )
-    }
+  if (s.cost.usd > 0) {
     rows.push({
-      label: v.long,
-      value: parts.join(' · '),
-      ...(v.tone === 'alert' ? { color: TONE_COLOR.alert } : {}),
+      label: t.cost,
+      value: `${formatUsd(s.cost.usd)} · ${formatUsd(s.cost.lastUsd)} ${t.lastPrompt}`,
     })
   }
   const c = cacheView(s)
@@ -445,29 +403,18 @@ export function detailRows(s: Snapshot): Row[] {
     value: cacheParts.join(' · '),
     ...(c.isCold ? { color: TONE_COLOR.alert } : {}),
   })
-  if (s.cost.usd > 0) {
-    rows.push({
-      label: t.cost,
-      value: `${formatUsd(s.cost.usd)} · ${formatUsd(s.cost.lastUsd)} ${t.lastPrompt}`,
-    })
-  }
-  if (s.agents.length === 0) {
-    rows.push({ label: t.agents, value: t.agentsNone, color: COLOR_DIM })
-  } else {
-    rows.push({
-      label: t.agents,
-      value: t.agentsCounts(s.running, s.agents.length - s.running, s.agents.length),
-    })
-    for (const agent of s.agents.slice(-6)) {
-      const isRunning = agent.endedAt === undefined
-      rows.push({
-        label: '',
-        value: `${isRunning ? '●' : '○'} ${agent.name} · ${agent.type} · ${formatDuration((agent.endedAt ?? s.now) - agent.startedAt)}`,
-        color: isRunning ? TONE_COLOR.alert : COLOR_DIM,
-      })
-    }
-  }
+  rows.push(...listRows(s, agentsView(s)))
+  rows.push(...listRows(s, tasksView(s)))
   return rows
+}
+
+/** A list's compact part on the terminal: its glyph and running/total. */
+function listText(els: CommonElements, v: ListView): RenderElement {
+  const { Text } = els
+  return Text({
+    ...(v.running > 0 ? { color: TONE_COLOR.alert, bold: true } : { dimColor: true }),
+    children: `${v.glyph} ${v.running}/${v.total}`,
+  })
 }
 
 /** The band on the terminal (and any surface without SVG): glyphs, and details on a toggle. */
@@ -481,34 +428,17 @@ export function drawTextualBand(
   const c = cacheView(s)
   const sep = Text({ dimColor: true, children: '│' })
   const parts: RenderChildren[] = [
-    Text({ color: s.color, bold: true, children: `${BAND_STYLE[s.band].glyph} ${tokensText(s)}` }),
+    Text({ color: s.color, bold: true, children: BAND_STYLE[s.band].glyph }),
+    Text({ bold: true, children: tokensText(s) }),
   ]
   if (s.deltas.length > 0) {
     parts.push(Text({ dimColor: true, children: `${barsOf(s.deltas)} +${formatTokens(s.lastDelta ?? 0)}` }))
   }
-  for (const l of s.limits) {
-    const v = limitView(l, s.now, t)
-    if (v.kind !== 'five_hour' && v.kind !== 'seven_day') continue
-    const color = TONE_COLOR[v.tone]
-    const time =
-      v.leftMs === null
-        ? ''
-        : v.kind === 'seven_day'
-          ? ` ${formatSpan(v.leftMs)}`
-          : v.elapsed !== null
-            ? ` ${formatSpan((v.elapsed / 100) * (windowSpanMs(v.kind) ?? 0))}`
-            : ''
+  parts.push(Button({ key: 'relay-handoff', label: '⇄', plain: true, dimColor: !isRelayHot(s), onPress: h.relay }))
+  if (s.cost.usd > 0) {
     parts.push(sep)
-    parts.push(Text({ children: `${v.short} ` }))
-    parts.push(Text({ color, children: textGauge(v.used) }))
-    parts.push(
-      Text({
-        bold: true,
-        ...(v.tone === 'alert' ? { color: TONE_COLOR.alert } : {}),
-        children: ` ${v.used}%`,
-      }),
-    )
-    if (time !== '') parts.push(Text({ dimColor: true, children: time }))
+    parts.push(Text({ bold: true, children: `≈ ${formatUsd(s.cost.usd)}` }))
+    if (s.cost.lastUsd > 0) parts.push(Text({ dimColor: true, children: `+${formatUsd(s.cost.lastUsd)}` }))
   }
   parts.push(sep)
   parts.push(Text({ children: `⚡ ${t.cache}` }))
@@ -526,20 +456,10 @@ export function drawTextualBand(
     parts.push(Text({ dimColor: true, children: `${s.pings}/${s.maxPings}` }))
   }
   parts.push(Button({ key: 'relay-ping', label: '↻', plain: true, dimColor: true, onPress: h.ping }))
-  if (s.cost.usd > 0) {
-    parts.push(sep)
-    parts.push(Text({ bold: true, children: `≈ ${formatUsd(s.cost.usd)}` }))
-    if (s.cost.lastUsd > 0) parts.push(Text({ dimColor: true, children: `+${formatUsd(s.cost.lastUsd)}` }))
-  }
   parts.push(sep)
-  parts.push(
-    Text({
-      ...(s.running > 0 ? { color: TONE_COLOR.alert, bold: true } : { dimColor: true }),
-      children: `👥 ${s.running}/${s.agents.length}`,
-    }),
-  )
+  parts.push(listText(els, agentsView(s)))
   parts.push(sep)
-  parts.push(Button({ key: 'relay-handoff', label: '⇄', plain: true, dimColor: !isRelayHot(s), onPress: h.relay }))
+  parts.push(listText(els, tasksView(s)))
   parts.push(
     Button({
       key: 'relay-expand',

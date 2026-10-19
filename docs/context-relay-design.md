@@ -231,3 +231,28 @@ line entry, sounds, per-subagent token accounting.
   dropped) records what the mod saw the engine do: session begin and end,
   readings, each step of a handoff and its outcome, compactions. It exists so
   the next live run can be read without a debugger.
+
+### 0.4.0, the band rearranged
+
+- **Order and colour.** The pills now read weather, cost, cache, subagents,
+  background commands. The weather pill stays neutral: only its icon takes
+  the band's colour, so the line does not flood red in a Storm. The ⇄ button
+  moved into the weather pill, after the last-turn delta, the way ↻ sits in
+  the cache pill; its own pill is gone.
+- **No rate-limit pills.** The 5-hour and 7-day gauges were dropped: the
+  band is about this conversation, and the limits are shown elsewhere. Their
+  state (`limits`), strings, icons and pacing helpers went with them.
+- **Commands.** A new pill in the shape of the subagents pill, counting what
+  the app's background-tasks panel counts: every Bash call of the main
+  conversation, running from `tool.call` until its answer; the last six in
+  the card by their description, with status and duration. A call whose
+  answer carries a `backgroundTaskId` (`run_in_background`, ctrl+b or a
+  timeout) keeps running under that id until its `<task-notification>` block
+  arrives in the text of the next `turn.start` or `session.receive`, parsed
+  for its `<task-id>` and `<status>`. Subagents' own commands are not listed:
+  their notifications never reach the main conversation.
+- **One pending handoff per project.** A fresh session on 19 October 2026
+  received the 10:06 handoff of the morning, long after the 10:32 and 11:01
+  ones had been delivered: a stale record with its file had outlived the newer
+  ones. Saving a handoff now deletes the project's previous record and file
+  first.

@@ -8,11 +8,8 @@ import {
   countdownSeconds,
   deltasOf,
   formatDuration,
-  formatSpan,
   formatTokens,
   parseBands,
-  textGauge,
-  toneOf,
   warmHours,
   withAlpha,
 } from '../hooks/bands'
@@ -25,6 +22,7 @@ import {
 } from '../hooks/handoff'
 import { languageOf } from '../hooks/i18n'
 import { appendLog, errorText, logFileFor } from '../hooks/log'
+import { shortCommand, taskName, taskNotes } from '../hooks/tasks'
 import { cacheLeftMs, pingsFor, ttlFromEnv } from '../hooks/warm'
 
 describe('bands', () => {
@@ -82,28 +80,42 @@ describe('bands', () => {
   })
 })
 
-describe('limits and cache', () => {
-  test('the pacing tone: calm behind the clock, fast ahead, alert far ahead or near full', async () => {
-    expect(toneOf(22, 60)).toBe('calm')
-    expect(toneOf(48, 40)).toBe('fast')
-    expect(toneOf(60, 40)).toBe('alert')
-    expect(toneOf(91, 95)).toBe('alert')
-    expect(toneOf(50, null)).toBe('calm')
-  })
-
-  test('spans read like augiefra: 3h00, 2d23h', async () => {
-    expect(formatSpan(3 * 60 * 60_000)).toBe('3h00')
-    expect(formatSpan(2 * 24 * 60 * 60_000 + 23 * 60 * 60_000 + 5 * 60_000)).toBe('2d23h')
-    expect(formatSpan(0)).toBe('0h00')
-  })
-
-  test('the cache hit share and the text gauge', async () => {
+describe('cache', () => {
+  test('the cache hit share', async () => {
     expect(cacheHitPercent({ input_tokens: 2_000, cache_read_input_tokens: 98_000, cache_creation_input_tokens: 0 })).toBe(98)
     expect(cacheHitPercent({ input_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 })).toBe(null)
-    expect(textGauge(50)).toBe('████░░░░')
-    expect(textGauge(100)).toBe('████████')
     expect(withAlpha('#3fb950', 0.12)).toBe('rgba(63,185,80,0.12)')
     expect(withAlpha('red', 0.5)).toBe('red')
+  })
+})
+
+describe('tasks', () => {
+  test('task notifications give the id and status, one per block', async () => {
+    const text = [
+      '<task-notification>',
+      '<task-id>bg1</task-id>',
+      '<output-file>/tmp/bg1.log</output-file>',
+      '<status>completed</status>',
+      '<summary>Background command "npm test" completed (exit code 0)</summary>',
+      '</task-notification>',
+      'and <task-notification><task-id>bg2</task-id></task-notification>',
+    ].join('\n')
+    expect(taskNotes(text)).toEqual([
+      { id: 'bg1', status: 'completed' },
+      { id: 'bg2', status: 'completed' },
+    ])
+    expect(taskNotes('<task-notification><task-id>x</task-id><status>failed</status></task-notification>')).toEqual([
+      { id: 'x', status: 'failed' },
+    ])
+    expect(taskNotes('plain text')).toEqual([])
+  })
+
+  test('a command line is shown on one line, cut short', async () => {
+    expect(shortCommand('npm   run\n  build')).toBe('npm run build')
+    expect(shortCommand('x'.repeat(60))).toBe(`${'x'.repeat(47)}…`)
+    expect(taskName('Build the project', 'npm run build')).toBe('Build the project')
+    expect(taskName('  ', 'npm run build')).toBe('npm run build')
+    expect(taskName(undefined, 'npm run build')).toBe('npm run build')
   })
 })
 

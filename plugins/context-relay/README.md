@@ -7,18 +7,16 @@ conversation into a fresh chat. One Claude Code mod, one row of pills above
 the prompt (the look follows Token Weather Usage by augiefra):
 
 ```
-⛈ 362k ▁▃█ +5k │ 5h ████░░░░ 48% 2h54 │ 7d ████████ 95% 1d23h │ ⚡ cache 41m 1/4 ↻ │ ≈ $1.84 +$0.12 │ 👥 1/3 │ ⇄
+⛈ 362k ▁▃█ +5k ⇄ │ ≈ $1.84 +$0.12 │ ⚡ cache 41m 1/4 ↻ │ 👥 1/3 │ ⚙ 0/2 ▾
 ```
 
 | Pill | What it shows | Hover card (desktop) / ▾ (terminal) |
 | --- | --- | --- |
-| Weather | tokens in context, coloured by band: ☀ under 100k, ☁ to 250k, 🌧 to 350k, ⛈ above; the bars are the last turns, ▲ the last turn's cost | band, window, recent turns |
-| 5h | the 5-hour limit: gauge, used %, time elapsed in the window; green behind the clock, yellow ahead, red 15 points ahead or at 90% | used, elapsed, pace, reset time |
-| 7d | the 7-day limit the same way, with the time left | used, elapsed, pace, time left |
-| ⚡ cache | minutes until the prompt cache cools, the hit share when below 90%, warm-up pings used; ↻ warms it now | cache state, hit share, pings and their cost |
+| Weather | tokens in context; only the icon takes the band's colour: ☀ under 100k, ☁ to 250k, 🌧 to 350k, ⛈ above; the bars are the last turns, ▲ the last turn's cost; ⇄ at the end is the handoff button, bright from Rain upward | band, window, recent turns |
 | ≈ $ | session cost and the last prompt's share | the same |
+| ⚡ cache | minutes until the prompt cache cools, the hit share when below 90%, warm-up pings used; ↻ warms it now | cache state, hit share, pings and their cost |
 | 👥 | subagents running / total, red while any runs | each with its type and duration |
-| ⇄ | the handoff button, always there; bright from Rain upward | |
+| ⚙ | commands running / total, as the app's background-tasks panel counts them: every Bash call from its start to its answer, a backgrounded one until its notification; red while any runs | each by its description, with status and duration |
 
 ## Handoff
 
@@ -95,5 +93,5 @@ handoff with its outcome, compactions. Attach it to a bug report.
 
 Weather bands, readings and recent-turn bars follow Anthropic's
 `token-weather` example (claude-code-playground, Apache-2.0). The cache
-timer, limits, cost and subagent display follow `token-weather-usage` by
+timer, cost, subagent and background-command display follow `token-weather-usage` by
 augiefra (Apache-2.0). The code here is written fresh against this build's API.
