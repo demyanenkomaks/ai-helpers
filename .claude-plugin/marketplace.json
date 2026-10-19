@@ -12,6 +12,12 @@
       "description": "Context weather, prompt-cache warming and one-click handoff of the conversation into a fresh chat: one band above the prompt.",
       "category": "productivity",
       "source": "./plugins/context-relay"
+    },
+    {
+      "name": "rm-guard",
+      "description": "Stops the agent from deleting files without your say-so: reads rm, del, Remove-Item and find -delete through wrappers and asks or refuses.",
+      "category": "security",
+      "source": "./plugins/rm-guard"
     }
   ]
 }

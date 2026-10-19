@@ -15,7 +15,8 @@ A Claude Code plugin marketplace: one idea per plugin, installable separately.
 
 | Plugin | Kind | Status |
 | --- | --- | --- |
-| [context-relay](plugins/context-relay/README.md) | mod | 0.4.0 |
+| [context-relay](plugins/context-relay/README.md) | mod | 0.5.0 |
+| [rm-guard](plugins/rm-guard/README.md) | mod | 0.1.0 |
 
 ## Install
 

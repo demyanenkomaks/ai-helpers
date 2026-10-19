@@ -1,0 +1,24 @@
+{
+  "name": "rm-guard",
+  "version": "0.1.0",
+  "description": "Stops the agent from deleting files without your say-so: reads rm, del, Remove-Item, find -delete through wrappers and asks or refuses.",
+  "author": {
+    "name": "demyanenkomaks"
+  },
+  "license": "MIT",
+  "keywords": ["safety", "guard", "rm", "delete", "hook", "mod"],
+  "userConfig": {
+    "commands": {
+      "type": "string",
+      "title": "Commands that stop",
+      "description": "Names separated by commas. A call of any of them is asked about or refused, unless every target is inside the allowed paths. Delete a name to let that command through. Empty means all of the defaults.",
+      "default": "rm,rmdir,unlink,shred,del,erase,rd,Remove-Item,ri,find"
+    },
+    "allowPaths": {
+      "type": "string",
+      "title": "Allowed paths",
+      "description": "Paths separated by semicolons where deletion passes without asking, for example node_modules;dist. Relative paths count from the project folder. A disk root, your home folder, the project folder itself and .git are always refused.",
+      "default": ""
+    }
+  }
+}
