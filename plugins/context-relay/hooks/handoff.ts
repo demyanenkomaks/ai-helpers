@@ -1,4 +1,6 @@
 import { formatClock, formatStamp } from './bands'
+import type { SessionMessage } from 'claude-code'
+
 import type { ContextRelayLanguage, ContextRelayPendingHandoff } from '../types'
 
 /**
@@ -79,4 +81,44 @@ export function frameHandoff(
       ? `Сводка предыдущего чата (собрана в ${clock}). Продолжай работу с этого состояния; не пересказывай сводку, если тебя не просят.`
       : `Handoff from the previous chat (collected at ${clock}). Continue the work from this state; do not recite the handoff unless asked.`
   return `${head}\n\n${pending.text.trim()}\n`
+}
+
+/** The transcript rendered for `$.model.complete` is cut to this many characters, oldest messages first. */
+export const TRANSCRIPT_LIMIT = 1_200_000
+const TOOL_TEXT_LIMIT = 2000
+
+const clip = (text: string, limit: number): string =>
+  text.length > limit ? `${text.slice(0, limit)}\n[… ${text.length - limit} more characters]` : text
+
+/**
+ * The transcript as one text, for a handoff collected without a fork: the
+ * main thread has sent nothing in this process (a resumed session before its
+ * first new turn), so the note is asked over `$.session.messages()` instead.
+ * Each message is its role, its text and its tool calls with their results,
+ * the newest kept within TRANSCRIPT_LIMIT characters.
+ */
+export function transcriptText(
+  messages: readonly SessionMessage[],
+  limit = TRANSCRIPT_LIMIT,
+): string {
+  const parts: string[] = []
+  let size = 0
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const m = messages[i]
+    if (m === undefined) continue
+    const lines: string[] = [`### ${m.role}`]
+    if (m.text !== '') lines.push(m.text)
+    for (const use of m.toolUses) {
+      lines.push(`[${use.tool}] ${clip(JSON.stringify(use.input), TOOL_TEXT_LIMIT)}`)
+      if (use.text !== undefined) lines.push(`→ ${clip(use.text, TOOL_TEXT_LIMIT)}`)
+    }
+    const part = lines.join('\n')
+    if (size + part.length > limit && parts.length > 0) {
+      parts.push(`[… ${i + 1} earlier messages left out]`)
+      break
+    }
+    parts.push(part)
+    size += part.length
+  }
+  return parts.reverse().join('\n\n')
 }

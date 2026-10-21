@@ -1,5 +1,11 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register, SessionCompactResult, Timer } from 'claude-code'
+import type {
+  EngineInterface,
+  ModelForkResult,
+  Register,
+  SessionCompactResult,
+  Timer,
+} from 'claude-code'
 
 import {
   BAND_STYLE,
@@ -25,6 +31,7 @@ import {
   parsePending,
   projectSlug,
   storeKeyFor,
+  transcriptText,
 } from './handoff'
 import { languageForSurface, languageOf, stringsFor } from './i18n'
 import { appendLog, errorText, logFileFor } from './log'
@@ -480,6 +487,29 @@ async function isCleared(
  */
 let relaying: string | null = null
 
+const NOTE_TOKENS = 8000
+
+/**
+ * The note, asked over the cached transcript. A fork has nothing to run on
+ * while the main thread has sent no request in this process (a resumed
+ * session before its first new turn), so then the transcript is read with
+ * `$.session.messages()` and sent whole, uncached, to the session's model.
+ */
+async function askForNote($: EngineInterface, prompt: string): Promise<ModelForkResult> {
+  const forked = await $.model.fork({ prompt })
+  if (forked.isAnswered || forked.reason !== 'nothing-to-fork') return forked
+
+  const messages = await $.session.messages().catch(() => [])
+  if ('deny' in messages || messages.length === 0) return forked
+  const model = await $.session.model()
+  const transcript = transcriptText(messages)
+  await logLine(
+    $,
+    `relay: nothing to fork (resumed session?), asking ${model} over ${messages.length} transcript messages (${transcript.length} chars)`,
+  )
+  return $.model.complete({ model, prompt: `The conversation so far:\n\n${transcript}\n\n${prompt}`, maxTokens: NOTE_TOKENS })
+}
+
 async function collectHandoff(
   $: EngineInterface,
   handoffDir: unknown,
@@ -498,9 +528,10 @@ async function collectHandoff(
   $.ui.toast(t.collecting)
 
   const prompt = await $.fs.read(`${$.plugin.root}/assets/handoff-prompt.md`)
-  const reply = await $.model.fork({ prompt })
+  const reply = await askForNote($, prompt)
   if (!reply.isAnswered) {
     const reason = forkFailure(reply)
+    await logLine($, `relay: the note was not written: ${reason}`)
     await update($, handoff, (h): ContextRelayHandoff => ({
       ...h,
       phase: 'idle',

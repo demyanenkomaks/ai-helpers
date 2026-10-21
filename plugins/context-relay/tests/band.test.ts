@@ -258,6 +258,63 @@ test('⇄ collects a handoff, clears the chat and delivers the note into the nex
   await band.unmount()
 })
 
+test('with nothing to fork, the note is asked over the transcript read from the session', async ($, on) => {
+  mock.clock(on, { now: Date.UTC(2026, 9, 19, 12, 30) })
+  mock.store(on)
+  mock.env(on, { HOME: 'C:\Users\me' })
+  const { commands } = bottom(on)
+  const written: { path: string; text: string }[] = []
+  on('fs.read', () => ({ value: 'HANDOFF PROMPT' }))
+  on('fs.write', ($, e) => {
+    written.push({ path: e.path, text: e.text })
+    return { value: undefined }
+  })
+  on('model.fork', () => ({
+    value: {
+      isAnswered: false,
+      reason: 'nothing-to-fork',
+      usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+    },
+  }))
+  on('session.model', () => ({ value: 'claude-fable-5-1' }))
+  on('session.messages', () => ({
+    value: [
+      { role: 'user', text: 'Fix the login bug', toolUses: [] },
+      {
+        role: 'assistant',
+        text: 'Done.',
+        toolUses: [{ tool_use_id: 'u1', tool: 'Bash', input: { command: 'git status' }, text: 'clean' }],
+      },
+    ],
+  }))
+  const asked: { model: string; prompt: string }[] = []
+  on('model.complete', ($, e) => {
+    asked.push({ model: e.model, prompt: e.prompt })
+    return {
+      value: {
+        isAnswered: true,
+        text: '# Handoff\n\n## Goal\nLogin bug',
+        usage: { input_tokens: 0, output_tokens: 10, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+      },
+    }
+  })
+  on('process.run', () => ({ value: { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
+  on('session.turns', () => ({ value: 0 }))
+
+  await start($)
+  const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...BAND })
+  await ui.press({ key: 'relay-handoff' })
+  await ui.unmount()
+
+  expect(asked).toHaveLength(1)
+  expect(asked[0]?.model).toBe('claude-fable-5-1')
+  expect(asked[0]?.prompt).toContain('Fix the login bug')
+  expect(asked[0]?.prompt).toContain('[Bash] {"command":"git status"}')
+  expect(asked[0]?.prompt).toContain('HANDOFF PROMPT')
+  expect(commands).toEqual(['clear'])
+  expect(written.filter(w => w.path.endsWith('.md'))[0]?.text).toContain('Login bug')
+})
+
 test('a handoff left by another session waits for Load and rides into the next first message', async ($, on) => {
   const now = 1_000_000
   mock.clock(on, { now })

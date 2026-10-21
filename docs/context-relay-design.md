@@ -97,7 +97,11 @@ Primary scenario, entirely inside the mod:
 
 1. Ask the model over the cached transcript (`$.model.fork`) for a handoff
    following `templates/handoff.md`: goal, current state, decisions made,
-   files changed, open tasks and next step, gotchas.
+   files changed, open tasks and next step, gotchas. With `nothing-to-fork`
+   (a resumed session before its first new turn) read the transcript with
+   `$.session.messages()` and ask the session's model over it with
+   `$.model.complete` (a string prompt: this build's host refuses text
+   blocks), the oldest messages dropped past 1.2M characters.
 2. Write it to `~/.claude/context-relay/handoff/<project-slug>/<yyyy-mm-dd-hhmm>.md`
    and record a pointer in `$.store`.
 3. Run `/clear` via `$.command.run`.

@@ -23,7 +23,10 @@ Press ⇄ (or type `/relay`). The mod asks the model, over the cached
 transcript, for a note in the shape of `templates/handoff.md` (goal, state,
 decisions, files, next step, gotchas), writes it to
 `~/.claude/context-relay/handoff/<project>/<date-time>.md`, clears the chat
-and puts the note into the first message of the new conversation.
+and puts the note into the first message of the new conversation. In a
+session just resumed, before its first new turn, there is nothing to fork
+yet: the transcript is then read from the session and sent whole, uncached,
+to the session's model instead.
 
 Clearing is tried three ways in turn, each checked by the session id and the
 turn count: the `/clear` command run by the mod, the same line submitted as a
