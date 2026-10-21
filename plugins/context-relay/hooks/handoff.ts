@@ -9,7 +9,6 @@ import type { ContextRelayLanguage, ContextRelayPendingHandoff } from '../types'
 
 export const STORE_PREFIX = 'handoff:'
 export const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
-export const COUNTDOWN_PANE = 'context-relay-countdown'
 /** The name of the context block the handoff rides in. */
 export const CONTEXT_BLOCK = 'contextRelayHandoff'
 

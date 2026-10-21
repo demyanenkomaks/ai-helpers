@@ -13,11 +13,10 @@ import {
   parseBands,
   warmHours,
 } from './bands'
-import { drawCountdownPane, drawDesktopBand, drawTextualBand } from './draw'
+import { drawDesktopBand, drawTextualBand } from './draw'
 import type { Handlers, Snapshot } from './draw'
 import {
   CONTEXT_BLOCK,
-  COUNTDOWN_PANE,
   deleteArgv,
   frameHandoff,
   handoffDirFor,
@@ -639,7 +638,11 @@ function stopCountdownTimers(): void {
   countdownTicker = undefined
 }
 
-/** Opens the countdown pane and arms the automatic handoff. */
+/**
+ * Puts the question under the band and arms the automatic handoff: the
+ * countdown row draws from `$.state` and the ticker redraws it each second.
+ * Silence is Yes: when the time runs out the handoff is collected.
+ */
 async function startCountdown(
   $: EngineInterface,
   seconds: number,
@@ -659,25 +662,23 @@ async function startCountdown(
   countdownTimer = $.clock.after(seconds * 1000, () => {
     void finishCountdown($, handoffDir)
   })
-  await $.ui.open({
-    id: COUNTDOWN_PANE,
-    title: t.autoTitle,
-    focus: true,
-    closeOnEscape: true,
-    rows: 6,
-  })
+  $.ui.toast(`${t.autoTitle}: ${t.autoBody(formatTokens(await lastTokens($)))}`, { timeoutMs: 8000 })
 }
 
-/** The countdown ran out, or Now was pressed. */
+async function lastTokens($: EngineInterface): Promise<number> {
+  const readingList = await read($, readings)
+  return readingList[readingList.length - 1]?.tokens ?? 0
+}
+
+/** Yes pressed, or the countdown ran out: collect the handoff, clear the chat, load it in the new one. */
 async function finishCountdown($: EngineInterface, handoffDir: unknown): Promise<void> {
   stopCountdownTimers()
   const state = await read($, handoff)
   if (state.phase !== 'countdown') return
-  await $.ui.close({ id: COUNTDOWN_PANE }).catch(() => undefined)
   await collectHandoff($, handoffDir)
 }
 
-/** Cancel pressed: automation waits for the next crossing of the threshold. */
+/** No pressed: the chat stays as it is; automation waits for the next crossing of the threshold. */
 async function cancelCountdown($: EngineInterface): Promise<void> {
   stopCountdownTimers()
   const state = await read($, handoff)
@@ -688,7 +689,6 @@ async function cancelCountdown($: EngineInterface): Promise<void> {
       countdownEndsAt: null,
     }))
   }
-  await $.ui.close({ id: COUNTDOWN_PANE }).catch(() => undefined)
 }
 
 /* ----------------------------------------------------------------- */
@@ -925,6 +925,12 @@ export const register: Register = (on, options) => {
       toggle: () => {
         void update($, isExpanded, v => !v)
       },
+      yes: () => {
+        void finishCountdown($, handoffDir)
+      },
+      no: () => {
+        void cancelCountdown($)
+      },
     }
     const ours =
       e.surface === 'desktop'
@@ -939,46 +945,6 @@ export const register: Register = (on, options) => {
         {rest}
       </Box>
     )
-  })
-
-  on(
-    'ui.render',
-    { component: 'Pane', requestId: 'context-relay-countdown' },
-    async ($, e) => {
-      const handoffState = await read($, handoff)
-      const readingList = await read($, readings)
-      const language = await read($, lang)
-      await read($, tick)
-      const now = await $.clock.now()
-      const endsAt = handoffState.countdownEndsAt ?? now
-      return drawCountdownPane(
-        $.ui.resolve(e),
-        {
-          t: stringsFor(languageForSurface(language, e.surface)),
-          tokens: readingList[readingList.length - 1]?.tokens ?? 0,
-          secondsLeft: Math.max(0, Math.ceil((endsAt - now) / 1000)),
-        },
-        () => {
-          void finishCountdown($, handoffDir)
-        },
-        () => {
-          void cancelCountdown($)
-        },
-      )
-    },
-  )
-
-  on('ui.close', { id: 'context-relay-countdown' }, async ($, e, next) => {
-    const handoffState = await read($, handoff)
-    if (handoffState.phase === 'countdown') {
-      stopCountdownTimers()
-      await update($, handoff, (h): ContextRelayHandoff => ({
-        ...h,
-        phase: 'idle',
-        countdownEndsAt: null,
-      }))
-    }
-    return next(e)
   })
 
   on('session.end', async ($, e, next) => {

@@ -63,6 +63,9 @@ export type Handlers = {
   load: () => void
   dismiss: () => void
   toggle: () => void
+  /** The automatic handoff's question: Yes collects now, No cancels. */
+  yes: () => void
+  no: () => void
 }
 
 export type CommonElements = Pick<Elements['terminal'], 'Box' | 'Text' | 'Button'>
@@ -338,9 +341,10 @@ export function drawDesktopBand(
       s.handoff.phase === 'clearing' && Text({ dimColor: true, children: t.clearing }),
     ],
   })
+  const common = { Box, Text, Button: els.Button }
   return Box({
     flexDirection: 'column',
-    children: [line, pendingRow({ Box, Text, Button: els.Button }, s, h)],
+    children: [line, pendingRow(common, s, h), countdownRow(common, s, h)],
   })
 }
 
@@ -463,7 +467,12 @@ export function drawTextualBand(
   )
   return Box({
     flexDirection: 'column',
-    children: [line, ...details, pendingRow({ Box, Text, Button }, s, h)],
+    children: [
+      line,
+      ...details,
+      pendingRow({ Box, Text, Button }, s, h),
+      countdownRow({ Box, Text, Button }, s, h),
+    ],
   })
 }
 
@@ -501,41 +510,42 @@ function pendingRow(
   })
 }
 
-export type CountdownView = {
-  t: Strings
-  tokens: number
-  secondsLeft: number
-}
-
-/** The countdown pane before an automatic handoff. */
-export function drawCountdownPane(
-  els: CommonElements,
-  view: CountdownView,
-  onNow: () => void,
-  onCancel: () => void,
-): RenderElement {
-  const { Box, Text, Button } = els
-  const { t } = view
+/**
+ * The automatic handoff's question, under the band while the countdown runs:
+ * what is about to happen, the seconds left, and Yes / No. Silence is Yes.
+ */
+export function countdownRow(
+  { Box, Text, Button }: CommonElements,
+  s: Snapshot,
+  h: Handlers,
+): RenderElement | null {
+  const { t } = s
+  if (s.handoff.phase !== 'countdown') return null
+  const endsAt = s.handoff.countdownEndsAt ?? s.now
+  const secondsLeft = Math.max(0, Math.ceil((endsAt - s.now) / 1000))
+  const color = TONE_COLOR.alert
   return Box({
     flexDirection: 'column',
-    gap: 1,
+    borderStyle: 'round',
+    borderColor: color,
     paddingX: 1,
     children: [
-      Text({ bold: true, children: t.autoTitle }),
-      Text({ children: t.autoBody(formatTokens(view.tokens), view.secondsLeft) }),
+      Text({ bold: true, color, children: `⇄ ${t.autoTitle}` }),
+      Text({ children: t.autoBody(formatTokens(s.tokens ?? 0)) }),
+      Text({ dimColor: true, children: t.autoCountdown(secondsLeft) }),
       Box({
         flexDirection: 'row',
         gap: 1,
         children: [
           Button({
-            key: 'relay-now',
+            key: 'relay-yes',
             variant: 'primary',
             hotkey: '1',
             autoFocus: true,
-            onPress: onNow,
-            children: t.now,
+            onPress: h.yes,
+            children: t.yes,
           }),
-          Button({ key: 'relay-cancel', hotkey: '2', onPress: onCancel, children: t.cancel }),
+          Button({ key: 'relay-no', hotkey: '2', onPress: h.no, children: t.no }),
         ],
       }),
     ],

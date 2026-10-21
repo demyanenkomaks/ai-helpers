@@ -1,6 +1,6 @@
 {
   "name": "context-relay",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Context weather, prompt-cache warming and one-click handoff of the conversation into a fresh chat: one band above the prompt.",
   "author": {
     "name": "demyanenkomaks"
@@ -25,7 +25,7 @@
     "countdownSeconds": {
       "type": "number",
       "title": "Countdown before an automatic clear (seconds)",
-      "description": "How long the Cancel button stays up before the automatic handoff clears the chat.",
+      "description": "How long the Yes / No question stays under the band before the automatic handoff goes ahead.",
       "default": 30
     },
     "bands": {

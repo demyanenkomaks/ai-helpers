@@ -33,9 +33,10 @@ export type Strings = {
   dismiss: string
   readyRow: string
   autoTitle: string
-  autoBody: (tokens: string, seconds: number) => string
-  now: string
-  cancel: string
+  autoBody: (tokens: string) => string
+  autoCountdown: (seconds: number) => string
+  yes: string
+  no: string
   stormToast: (tokens: string) => string
   expand: string
   collapse: string
@@ -75,10 +76,11 @@ const en: Strings = {
   dismiss: 'Dismiss',
   readyRow: 'Handoff ready: it loads with your next message',
   autoTitle: 'Automatic handoff',
-  autoBody: (tokens, seconds) =>
-    `Context is at ${tokens} tokens. In ${seconds}s the handoff is collected and the chat cleared.`,
-  now: 'Now',
-  cancel: 'Cancel',
+  autoBody: tokens =>
+    `Context is at ${tokens} tokens: collect the handoff and clear the chat?`,
+  autoCountdown: seconds => `Yes in ${seconds}s unless you answer.`,
+  yes: 'Yes',
+  no: 'No',
   stormToast: tokens =>
     `Storm: ${tokens} tokens in context. Consider handing over (⇄).`,
   expand: 'Show details',
@@ -119,10 +121,11 @@ const ru: Strings = {
   dismiss: 'Убрать',
   readyRow: 'Сводка готова: загрузится с вашим следующим сообщением',
   autoTitle: 'Автоматическая передача',
-  autoBody: (tokens, seconds) =>
-    `В контексте ${tokens} токенов. Через ${seconds} с сводка будет собрана, а чат очищен.`,
-  now: 'Сейчас',
-  cancel: 'Отмена',
+  autoBody: tokens =>
+    `В контексте ${tokens} токенов: собрать сводку и очистить чат?`,
+  autoCountdown: seconds => `Через ${seconds} с ответ «Да», если не ответите.`,
+  yes: 'Да',
+  no: 'Нет',
   stormToast: tokens =>
     `Гроза: ${tokens} токенов в контексте. Подумайте о передаче (⇄).`,
   expand: 'Показать детали',

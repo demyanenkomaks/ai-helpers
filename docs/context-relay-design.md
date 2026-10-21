@@ -118,9 +118,13 @@ later change to the mod if ever needed.
 
 - Trigger: `turn.complete` of the main loop with `context.tokens ≥ autoHandoffAt`
   (default **500000**; `0` disables).
-- Before clearing: a dialog pane with a **30-second countdown** (setting
-  `countdownSeconds`) and buttons **Now** / **Cancel**. Cancel skips automation
-  until the next turn crosses the threshold again.
+- Before clearing: a question under the band, in the chat above the prompt
+  (the way rm-guard asks), with what is about to happen, a **30-second
+  countdown** (setting `countdownSeconds`) and buttons **Yes** / **No**. Yes, or
+  the countdown running out, collects the handoff, clears the chat and loads the
+  note into the new conversation. No keeps the current chat untouched and skips
+  automation until the next turn crosses the threshold again. A separate pane
+  (0.5.0) was dropped: the person asked for the question in the chat.
 - Never fires mid-turn: commands queue until the session is idle anyway.
 
 ### Subagents

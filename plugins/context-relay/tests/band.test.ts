@@ -290,17 +290,12 @@ test('a handoff left by another session waits for Load and rides into the next f
   await band.unmount()
 })
 
-test('automation counts down at the threshold and Cancel stops it', { options: { autoHandoffAt: 300000, countdownSeconds: 10 } }, async ($, on) => {
+test('automation asks under the band at the threshold; No keeps the chat, silence is Yes', { options: { autoHandoffAt: 300000, countdownSeconds: 10 } }, async ($, on) => {
   const clock = mock.clock(on, { now: 0 })
   mock.store(on)
   mock.env(on, {})
   bottom(on)
-  const opened: string[] = []
-  on('ui.open', ($, e) => {
-    opened.push(e.id)
-    return { value: { isPlaced: true } }
-  })
-  on('ui.close', () => ({ value: undefined }))
+  on('fs.read', () => ({ value: 'HANDOFF PROMPT' }))
   let forks = 0
   on('model.fork', () => {
     forks += 1
@@ -309,32 +304,26 @@ test('automation counts down at the threshold and Cancel stops it', { options: {
 
   await start($)
   await $.turn.complete(TURN)
-  expect(opened).toEqual(['context-relay-countdown'])
 
-  const pane = await $.ui.mount({
-    plugin: PLUGIN,
-    surface: 'terminal',
-    component: 'Pane',
-    requestId: 'context-relay-countdown',
-    props: {
-      title: 'Automatic handoff',
-      isFocused: true,
-      bodyColumns: 80,
-      placement: 'inline',
-      scroll: { offset: 0, bodyRows: 6 },
-      view: {},
-    },
-  })
-  expect(await pane.find({ text: /In 10s/ })).toBeDefined()
+  const band = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...BAND })
+  expect(await band.find({ text: /Automatic handoff/ })).toBeDefined()
+  expect(await band.find({ text: /Yes in 10s/ })).toBeDefined()
   await clock.advance(3000)
-  expect(await pane.find({ text: /In 7s/ })).toBeDefined()
-  await pane.press({ key: 'relay-cancel' })
-  await pane.unmount()
+  expect(await band.find({ text: /Yes in 7s/ })).toBeDefined()
+  await band.press({ key: 'relay-no' })
+  expect(await band.find({ type: 'Button', key: 'relay-yes' })).toBe(undefined)
+  await band.unmount()
 
   await clock.advance(20_000)
   expect(forks).toBe(0)
+
+  // The next crossing asks again; left alone, the countdown collects the handoff.
   await $.turn.complete({ ...TURN, turnId: 't2' })
-  expect(opened).toEqual(['context-relay-countdown', 'context-relay-countdown'])
+  const again = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...BAND })
+  expect(await again.find({ type: 'Button', key: 'relay-yes' })).toBeDefined()
+  await again.unmount()
+  await clock.advance(10_000)
+  expect(forks).toBe(1)
 })
 
 test('when /clear does not take, the conversation is replaced with the handoff by compaction', async ($, on) => {

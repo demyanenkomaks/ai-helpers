@@ -37,8 +37,11 @@ delivered.
 If you open a new session by hand instead, the band shows **Load** and
 **Dismiss** for a handoff younger than 7 days.
 
-Automation: when the context reaches 500k tokens after a turn, a pane counts
-down 30 seconds with **Now** and **Cancel**, then does the same.
+Automation: when the context reaches 500k tokens after a turn, a question
+appears under the band in the chat, above the prompt: what is about to happen,
+the seconds left, and **Yes** / **No**. **Yes**, or 30 seconds of silence,
+collects the handoff, clears the chat and loads the note into the new one.
+**No** keeps the current chat as it is until the threshold is crossed again.
 
 ## Settings
 
@@ -48,7 +51,7 @@ In `/config` (or the plugin's settings in the desktop app):
 | --- | --- | --- |
 | Keep the prompt cache warm | `4h` | `off`, `2h`, `4h` or `8h` of idle pings |
 | Automatic handoff at | `500000` | tokens; `0` disables |
-| Countdown before an automatic clear | `30` | seconds |
+| Countdown before an automatic clear | `30` | seconds the Yes / No question waits |
 | Weather band boundaries | `100000,250000,350000` | three rising numbers |
 | Handoff folder | empty | empty means `~/.claude/context-relay/handoff` |
 
