@@ -124,7 +124,7 @@ export function agentsView(s: Snapshot): ListView {
     total,
     headline: total === 0 ? t.agentsNone : t.agentsCounts(s.running, total - s.running, total),
     items: s.agents.slice(-ITEMS_SHOWN).map(a => ({
-      text: `${a.name} · ${a.type}`,
+      text: [a.model, a.name, a.type].filter(Boolean).join(' · '),
       startedAt: a.startedAt,
       ...(a.endedAt !== undefined ? { endedAt: a.endedAt } : {}),
     })),

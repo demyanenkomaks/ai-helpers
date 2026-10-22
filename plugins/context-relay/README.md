@@ -15,7 +15,7 @@ the prompt (the look follows Token Weather Usage by augiefra):
 | Weather | tokens in context; only the icon takes the band's colour: ☀ under 100k, ☁ to 250k, 🌧 to 350k, ⛈ above; the bars are the last turns, ▲ the last turn's cost; ⇄ at the end is the handoff button, bright from Rain upward | band, window, recent turns |
 | ≈ $ | session cost and the last prompt's share | the same |
 | ⚡ cache | minutes until the prompt cache cools, the hit share when below 90%, warm-up pings used; ↻ warms it now | cache state, hit share, pings and their cost |
-| 👥 | subagents running / total, red while any runs | each with its type and duration |
+| 👥 | subagents running / total, red while any runs | each with its model, name, type and duration |
 
 ## Handoff
 

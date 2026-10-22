@@ -134,7 +134,8 @@ later change to the mod if ever needed.
 ### Subagents
 
 Per session: running / finished / total, from `agent.spawn` and the subagent
-loop's `turn.complete`. Hover list with names and durations.
+loop's `turn.complete`. Hover list with the model (from `agent.spawn`'s
+result, shortened to `Sonnet 5.5`), name, type and duration of each.
 
 ### Language
 

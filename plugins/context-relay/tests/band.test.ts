@@ -114,6 +114,23 @@ test('the terminal band expands its details on ▾ and shows the cost and subage
   await ui.unmount()
 })
 
+test('a subagent is listed with its model first, then its name and type', async ($, on) => {
+  const clock = mock.clock(on, { now: 1_000_000 })
+  mock.store(on)
+  mock.env(on, {})
+  bottom(on)
+  on('agent.spawn', () => ({ model: 'claude-sonnet-5-5', agentId: 'a1' }))
+  await start($)
+  await $.turn.complete(TURN)
+  await $.agent.spawn({ prompt: 'Find the login bug', description: 'P19: login bug', subagentType: 'general-purpose' })
+  await clock.advance(60_000)
+
+  const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...BAND })
+  await ui.press({ key: 'relay-expand' })
+  expect(await ui.find({ text: /Sonnet 5\.5 · P19: login bug · general-purpose/ })).toBeDefined()
+  await ui.unmount()
+})
+
 test('Russian labels on the desktop under a ru locale, English in the terminal', async ($, on) => {
   mock.clock(on, { now: 1_000_000 })
   mock.store(on)

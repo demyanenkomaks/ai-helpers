@@ -42,6 +42,8 @@ export type ContextRelayAgent = {
   name: string;
   /** The agent type (`Explore`, `general-purpose`, ...). */
   type: string;
+  /** The model it runs on, as `agent.spawn` resolved it (`claude-sonnet-5-5`); absent when unknown. */
+  model?: string;
   startedAt: number;
   /** Set when its loop finished. */
   endedAt?: number;

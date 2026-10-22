@@ -6,6 +6,7 @@ import {
   barsOf,
   cacheHitPercent,
   countdownSeconds,
+  modelLabel,
   deltasOf,
   formatDuration,
   formatTokens,
@@ -76,6 +77,15 @@ describe('bands', () => {
     expect(countdownSeconds(30)).toBe(30)
     expect(countdownSeconds(1)).toBe(5)
     expect(countdownSeconds('x')).toBe(30)
+  })
+
+  test('a model id reads as a short label', () => {
+    expect(modelLabel('claude-sonnet-5-5')).toBe('Sonnet 5.5')
+    expect(modelLabel('claude-opus-5-5-20260101')).toBe('Opus 5.5')
+    expect(modelLabel('us.anthropic.claude-fable-5-1-v1:0')).toBe('Fable 5.1')
+    expect(modelLabel('claude-haiku-5-5[1m]')).toBe('Haiku 5.5')
+    expect(modelLabel('haiku')).toBe('Haiku')
+    expect(modelLabel('gpt-x')).toBe('gpt-x')
   })
 })
 

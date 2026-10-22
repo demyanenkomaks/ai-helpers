@@ -117,6 +117,25 @@ export function formatStamp(at: number): string {
 }
 
 /** "$1.23", "$0.004". */
+/**
+ * A model id as a short label: `claude-sonnet-5-5` and `us.anthropic.claude-sonnet-5-5-20260101-v1:0`
+ * read `Sonnet 5.5`, an alias `haiku` reads `Haiku`; anything else is kept as written.
+ */
+export function modelLabel(id: string): string {
+  const m = /(?:^|[.-])claude-([a-z]+)-(\d+)(?:-(\d+))?(?=$|-|:|\[|@)/i.exec(id)
+  if (m !== null) {
+    const family = m[1] ?? ''
+    const name = family.charAt(0).toUpperCase() + family.slice(1).toLowerCase()
+    return m[3] === undefined ? `${name} ${m[2]}` : `${name} ${m[2]}.${m[3]}`
+  }
+  const alias = /^(haiku|sonnet|opus|fable|mythos)$/i.exec(id.trim())
+  if (alias !== null) {
+    const a = alias[1] ?? ''
+    return a.charAt(0).toUpperCase() + a.slice(1).toLowerCase()
+  }
+  return id
+}
+
 export function formatUsd(usd: number): string {
   if (!Number.isFinite(usd) || usd <= 0) return '$0'
   return usd >= 1 ? `$${usd.toFixed(2)}` : `$${usd.toFixed(3)}`

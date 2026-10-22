@@ -16,6 +16,7 @@ import {
   deltasOf,
   formatClock,
   formatTokens,
+  modelLabel,
   parseBands,
   warmHours,
 } from './bands'
@@ -832,10 +833,17 @@ export const register: Register = (on, options) => {
     if ('agentId' in result && result.agentId !== undefined) {
       const id = result.agentId
       const now = await $.clock.now()
+      const model = result.model || e.model || e.parentModel
       await update($, agents, list =>
         [
           ...list.filter(a => a.id !== id),
-          { id, name: e.description, type: e.subagentType, startedAt: now },
+          {
+            id,
+            name: e.description,
+            type: e.subagentType,
+            ...(model ? { model: modelLabel(model) } : {}),
+            startedAt: now,
+          },
         ].slice(-50),
       )
     }
